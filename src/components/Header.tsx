@@ -43,7 +43,7 @@ const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onToggleLock}
               className={`p-2 rounded-lg transition-colors ${
-                isLocked ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
+                isLocked ? 'bg-red-500 hover:bg-red-600' : 'bg-white hover:bg-white'
               }`}
               title={isLocked ? 'Unlock Controls' : 'Lock Controls'}
             >
@@ -52,7 +52,7 @@ const Header: React.FC<HeaderProps> = ({
             
             <button
               onClick={onToggleFullscreen}
-              className="p-2 rounded-lg bg-blue-700 hover:bg-blue-800 transition-colors"
+              className="p-2 rounded-lg bg-white hover:bg-white transition-colors"
               title="Open Display Page"
             >
               <Monitor className="w-4 h-4" />
@@ -60,7 +60,7 @@ const Header: React.FC<HeaderProps> = ({
             
             <button
               onClick={onOpenSettings}
-              className="p-2 rounded-lg bg-blue-700 hover:bg-blue-800 transition-colors"
+              className="p-2 rounded-lg bg-white hover:bg-white transition-colors"
               title="Settings"
             >
               <Settings className="w-4 h-4" />

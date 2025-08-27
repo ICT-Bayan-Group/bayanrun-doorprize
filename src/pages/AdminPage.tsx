@@ -212,6 +212,10 @@ const AdminPage: React.FC = () => {
     }
   }, [setPrizes, selectedPrize]);
 
+  const handleClearWinners = () => {
+    setCurrentWinners([]);
+  }
+
   const handleExport = useCallback(() => {
     exportToCsv(participants, winners as any);
   }, [participants, winners]);
@@ -336,6 +340,7 @@ const AdminPage: React.FC = () => {
               settings={settings}
               selectedPrize={selectedPrize}
               onStartDraw={startDrawing}
+              onClearWinners={handleClearWinners} 
               onStopDraw={stopDrawing}
               canDraw={canDraw}
               isLocked={isLocked}
