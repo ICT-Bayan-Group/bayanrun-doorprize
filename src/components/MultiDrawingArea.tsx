@@ -34,7 +34,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     <div className="bg-white rounded-xl shadow-lg p-6">
       <div className="flex items-center mb-6">
         <Trophy className="w-6 h-6 text-green-600 mr-2" />
-        <h2 className="text-xl font-bold text-gray-800">Multi-Winner Drawing</h2>
+        <h2 className="text-xl font-bold text-gray-800">Undian</h2>
       </div>
 
       {/* Drawing Controls */}

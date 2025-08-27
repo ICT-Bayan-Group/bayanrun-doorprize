@@ -56,7 +56,7 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
           <Users className="w-5 h-5" />
-          Participants ({participants.length})
+          Peserta ({participants.length})
         </h2>
       </div>
 

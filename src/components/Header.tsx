@@ -23,18 +23,18 @@ const Header: React.FC<HeaderProps> = ({
     <motion.header
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4 shadow-lg"
+      className="bg-gradient-to-r from-white to-white text-blue-800 p-4 shadow-lg"
     >
       <div className="container mx-auto flex items-center justify-between">
         <div className="flex items-center gap-4">
           {logo ? (
-            <img src={logo} alt="Event Logo" className="h-12 w-auto" />
+            <img src={logo} alt="Event Logo" className="h-16 w-auto" />
           ) : (
             <Trophy className="w-8 h-8 text-yellow-400" />
           )}
           <div>
-            <h1 className="text-2xl font-bold">Bayan Run 2025</h1>
-            <p className="text-blue-100 text-sm">Doorprize Random Name Picker</p>
+            <h1 className="text-2xl font-bold">BAYAN RUN 2025</h1>
+            <p className="text-red-600 font-semibold text-sm">Doorprize Random Name Picker</p>
           </div>
         </div>
         
