@@ -130,7 +130,7 @@ const DisplayPage: React.FC = () => {
         <motion.h1
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="text-5xl font-extrabold text-italic mb-2 text-red-600"
+          className="text-5xl font-extrabold italic mb-2 text-red-600"
         >
           DOORPRIZE DRAWING
         </motion.h1>
@@ -142,9 +142,9 @@ const DisplayPage: React.FC = () => {
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="mt-4 inline-block px-6 py-3 bg-purple-600 bg-opacity-80 rounded-full"
+            className="mt-4 inline-block px-6 py-3 bg-blue-800 text-white rounded-full"
           >
-            <p className="text-xl font-semibold">🏆 {localState.selectedPrizeName}</p>
+            <p className="text-xl font-semibold uppercase">Hadiah :  {localState.selectedPrizeName}</p>
           </motion.div>
         )}
       </div>
@@ -272,7 +272,7 @@ const DisplayPage: React.FC = () => {
             </div>
             
             <p className="text-2xl font-semibold text-center mt-6 text-blue-700">
-              Please wait while we select the winners...
+              And the winners are...
             </p>
           </motion.div>
         ) : (

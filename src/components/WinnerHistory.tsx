@@ -33,7 +33,7 @@ const WinnerHistory: React.FC<WinnerHistoryProps> = ({
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
           <Trophy className="w-5 h-5 text-yellow-500" />
-          Winners ({winners.length})
+          Pemenang ({winners.length})
         </h2>
         
         {winners.length > 0 && !isLocked && (
@@ -43,14 +43,12 @@ const WinnerHistory: React.FC<WinnerHistoryProps> = ({
               className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 text-sm"
             >
               <Download className="w-4 h-4" />
-              Export
             </button>
             <button
               onClick={onPrint}
               className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
             >
               <Printer className="w-4 h-4" />
-              Print
             </button>
           </div>
         )}

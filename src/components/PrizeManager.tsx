@@ -76,7 +76,7 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
           <Gift className="w-5 h-5 text-purple-500" />
-          Prize Management ({prizes.length})
+          Data Hadiah ({prizes.length})
         </h2>
         
         {!isLocked && (
@@ -85,7 +85,7 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            Add Prize
+            Add
           </button>
         )}
       </div>
