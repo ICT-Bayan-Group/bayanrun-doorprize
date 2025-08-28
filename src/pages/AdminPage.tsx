@@ -351,7 +351,6 @@ const AdminPage: React.FC = () => {
           <div>
             <WinnerHistory
               winners={winners}
-              prizes={prizes}
               onExport={handleExport}
               onPrint={handlePrint}
               isLocked={isLocked}

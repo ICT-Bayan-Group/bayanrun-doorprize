@@ -29,6 +29,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
   isLocked,
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [showPrizeAlert, setShowPrizeAlert] = React.useState(false);
 
   const drawCount = selectedPrize
     ? Math.min(selectedPrize.remainingQuota, participants.length)
@@ -47,6 +48,18 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
 
   const handleCancelDelete = () => {
     setShowDeleteConfirm(false);
+  };
+
+  const handleDrawClick = () => {
+    if (!selectedPrize) {
+      setShowPrizeAlert(true);
+      return;
+    }
+    onStartDraw();
+  };
+
+  const handleClosePrizeAlert = () => {
+    setShowPrizeAlert(false);
   };
 
   return (
@@ -76,7 +89,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
           <div className="flex items-center text-gray-600">
             <Users className="w-5 h-5 mr-2" />
             <span className="text-sm">
-              Drawing {drawCount} winner{drawCount > 1 ? 's' : ''} from {participants.length}{' '}
+              Drawing winner{drawCount > 1 ? 's' : ''} from {participants.length}{' '}
               participant{participants.length !== 1 ? 's' : ''}
             </span>
           </div>
@@ -85,7 +98,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         <div className="flex space-x-3">
           {!isDrawing ? (
             <button
-              onClick={onStartDraw}
+              onClick={handleDrawClick}
               disabled={!canDraw || isLocked}
               className={`flex items-center px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
                 canDraw && !isLocked
@@ -94,7 +107,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
               }`}
             >
               <Play className="w-5 h-5 mr-2" />
-              Start Drawing
+               Draw
             </button>
           ) : (
             <button
@@ -111,12 +124,44 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
               onClick={handleDeleteClick}
               className="flex items-center px-4 py-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg font-semibold transition-all duration-200 hover:shadow-md"
             >
-              <Trash2 className="w-5 h-5 mr-2" />
-              Clear Winners
+              <Trash2 className="w-5 h-5" />
             </button>
           )}
         </div>
       </div>
+
+      {/* Prize Selection Alert Modal */}
+      {showPrizeAlert && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-xl p-6 max-w-md w-mx-4 shadow-2xl"
+          >
+            <div className="flex items-center mb-4">
+              <AlertTriangle className="w-6 h-6 text-orange-500 mr-2" />
+              <h3 className="text-lg font-bold text-gray-800">Prize Selection Required</h3>
+            </div>
+
+            <p className="text-gray-600 mb-6">
+              Please select a prize before starting the draw. You can choose a prize from the available options.
+            </p>
+
+            <div className="flex justify-end">
+              <button
+                onClick={handleClosePrizeAlert}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
