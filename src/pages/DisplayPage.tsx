@@ -224,7 +224,7 @@ const DisplayPage: React.FC = () => {
               transition={{ delay: 0.3 }}
               className="text-6xl font-bold text-red-600 mb-8 text-center"
             >
-              🎉 WINNERS! 🎉
+              🎉 PEMENANG! 🎉
             </motion.h2>
             
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
@@ -255,9 +255,9 @@ const DisplayPage: React.FC = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 1.5 }}
-              className="text-3xl text-center mt-12 opacity-80"
+              className="text-3xl text-center mt-12 opacity-80 uppercase"
             >
-              Congratulations to all winners! 🎊
+            Selamat untuk semua pemenang! 🎊
             </motion.p>
           </motion.div>
         ) : localState.isDrawing && !hasShownResults ? (
@@ -483,7 +483,7 @@ const DisplayPage: React.FC = () => {
             </motion.div>
             
             <h2 className="text-5xl font-bold text-blue-800 mb-6 uppercase italic">
-              Ready for Multi-Winner Draw
+              Siapkah Anda untuk menang?
             </h2>
             
             <div className="grid grid-cols-5 gap-4 max-w-md mx-auto mb-8">
@@ -507,11 +507,11 @@ const DisplayPage: React.FC = () => {
             </div>
             
             <p className="text-2xl opacity-60 mb-8">
-              Waiting for organizer to start the drawing...
+             Menunggu untuk memulai pengundian...
             </p>
             
-            <div className="text-lg opacity-50">
-              <p>🎁 Good luck to all participants! 🎁</p>
+            <div className="text-lg opacity-50 uppercase">
+              <p>Semoga Beruntung untuk semua partisipan Bayan Run 2025 !!</p>
             </div>
           </motion.div>
         )}

@@ -294,13 +294,13 @@ const AdminPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-blue-800">Display Page</h3>
-              <p className="text-blue-600">Open this page on projector/large screen for audience</p>
+              <p className="text-blue-600">Buka halaman ini di proyektor/layar besar untuk audiens</p>
             </div>
             <button
               onClick={openDisplayPage}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
             >
-              Open Display Page
+              Buka Display Page
             </button>
           </div>
         </div>

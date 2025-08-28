@@ -101,34 +101,34 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Prize Name
+                  Nama Hadiah
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                  placeholder="e.g., Grand Prize, Smartphone, Gift Voucher"
+                  className="w-full px-3 py-2 border italic border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  placeholder="Contoh : Iphone, Smartwatch, Voucher Hadiah"
                   required
                 />
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
+                  Deskripsi
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                  placeholder="Prize description..."
+                  placeholder="Keterangan hadiah..."
                   rows={2}
                 />
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Quota (Number of Winners)
+                  Kuota (Jumlah Hadiah)
                 </label>
                 <input
                   type="number"
@@ -145,14 +145,14 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
                   type="submit"
                   className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                 >
-                  {editingPrize ? 'Update Prize' : 'Add Prize'}
+                  {editingPrize ? 'Update Hadiah' : 'Tambah Hadiah'}
                 </button>
                 <button
                   type="button"
                   onClick={handleCancel}
                   className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
                 >
-                  Cancel
+                  Batal
                 </button>
               </div>
             </form>
@@ -250,8 +250,8 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
         {prizes.length === 0 && (
           <div className="text-center py-8 text-gray-500">
             <Gift className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>No prizes added yet</p>
-            <p className="text-sm">Add prizes to start organizing your doorprize event</p>
+            <p>Tidak ada Hadiah</p>
+            <p className="text-sm">Masukan hadiah untuk mulai mengatur acara doorprize Anda</p>
           </div>
         )}
       </div>
