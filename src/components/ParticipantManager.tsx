@@ -67,7 +67,7 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="Enter participant name"
+              placeholder="Masukan nama partisipan"
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <button
@@ -133,8 +133,8 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
         {participants.length === 0 && (
           <div className="text-center py-8 text-gray-500">
             <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>No participants added yet</p>
-            <p className="text-sm">Add names manually or import from a file</p>
+            <p>Partisipan belum ditambahkan</p>
+            <p className="text-sm">Tambahkan nama atau impor dari file</p>
           </div>
         )}
       </div>

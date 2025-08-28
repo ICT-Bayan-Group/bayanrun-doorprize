@@ -47,7 +47,7 @@ const Header: React.FC<HeaderProps> = ({
               }`}
               title={isLocked ? 'Unlock Controls' : 'Lock Controls'}
             >
-              {isLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+              {isLocked ? <Lock className="w-4 h-4 text-white" /> : <Unlock className="w-4 h-4" />}
             </button>
             
             <button
