@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Play, Square, Trophy, Users, Gift } from 'lucide-react';
+import { Play, Square, Trophy, Users, Gift, Trash2, AlertTriangle } from 'lucide-react';
 import { Participant, Winner, AppSettings, Prize } from '../types';
 
 interface MultiDrawingAreaProps {
@@ -11,6 +11,7 @@ interface MultiDrawingAreaProps {
   selectedPrize: Prize | null;
   onStartDraw: () => void;
   onStopDraw: () => void;
+  onClearWinners: () => void;
   canDraw: boolean;
   isLocked: boolean;
 }
@@ -23,12 +24,43 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
   selectedPrize,
   onStartDraw,
   onStopDraw,
+  onClearWinners,
   canDraw,
   isLocked,
 }) => {
-  const drawCount = selectedPrize ? 
-    Math.min(selectedPrize.remainingQuota, participants.length) : 
-    Math.min(settings.multiDrawCount, participants.length);
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [showPrizeAlert, setShowPrizeAlert] = React.useState(false);
+
+  const drawCount = selectedPrize
+    ? Math.min(selectedPrize.remainingQuota, participants.length)
+    : Math.min(settings.multiDrawCount, participants.length);
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (typeof onClearWinners === 'function') {
+      onClearWinners();
+    }
+    setShowDeleteConfirm(false);
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+  };
+
+  const handleDrawClick = () => {
+    if (!selectedPrize) {
+      setShowPrizeAlert(true);
+      return;
+    }
+    onStartDraw();
+  };
+
+  const handleClosePrizeAlert = () => {
+    setShowPrizeAlert(false);
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
@@ -57,7 +89,8 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
           <div className="flex items-center text-gray-600">
             <Users className="w-5 h-5 mr-2" />
             <span className="text-sm">
-              Drawing {drawCount} winner{drawCount > 1 ? 's' : ''} from {participants.length} participant{participants.length !== 1 ? 's' : ''}
+              Drawing winner{drawCount > 1 ? 's' : ''} from {participants.length}{' '}
+              participant{participants.length !== 1 ? 's' : ''}
             </span>
           </div>
         </div>
@@ -65,7 +98,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         <div className="flex space-x-3">
           {!isDrawing ? (
             <button
-              onClick={onStartDraw}
+              onClick={handleDrawClick}
               disabled={!canDraw || isLocked}
               className={`flex items-center px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
                 canDraw && !isLocked
@@ -74,7 +107,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
               }`}
             >
               <Play className="w-5 h-5 mr-2" />
-              Start Drawing
+               Draw
             </button>
           ) : (
             <button
@@ -85,25 +118,91 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
               Stop Drawing
             </button>
           )}
+
+          {currentWinners.length > 0 && !isDrawing && (
+            <button
+              onClick={handleDeleteClick}
+              className="flex items-center px-4 py-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg font-semibold transition-all duration-200 hover:shadow-md"
+            >
+              <Trash2 className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Drawing Status */}
-      {isDrawing && (
-        <div className="mb-6 p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
-          <div className="flex items-center">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
-            <p className="text-blue-800 font-semibold">
-              Drawing {drawCount} winners...
+      {/* Prize Selection Alert Modal */}
+      {showPrizeAlert && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-xl p-6 max-w-md w-mx-4 shadow-2xl"
+          >
+            <div className="flex items-center mb-4">
+              <AlertTriangle className="w-6 h-6 text-orange-500 mr-2" />
+              <h3 className="text-lg font-bold text-gray-800">Prize Selection Required</h3>
+            </div>
+
+            <p className="text-gray-600 mb-6">
+              Please select a prize before starting the draw. You can choose a prize from the available options.
             </p>
-          </div>
-          <p className="text-blue-600 text-sm mt-1">
-            Please wait while we select the winners randomly
-          </p>
-        </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={handleClosePrizeAlert}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
       )}
 
-      {/* Current Winners Display - Styled like Winners section */}
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-xl p-6 max-w-md w-mx-4 shadow-2xl"
+          >
+            <div className="flex items-center mb-4">
+              <AlertTriangle className="w-6 h-6 text-red-500 mr-2" />
+              <h3 className="text-lg font-bold text-gray-800">Confirm Delete</h3>
+            </div>
+
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to clear all current winners? This action cannot be undone.
+            </p>
+
+            <div className="flex space-x-3 justify-end">
+              <button
+                onClick={handleCancelDelete}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Winners Section */}
       {currentWinners.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-4">
@@ -119,68 +218,30 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg hover:from-yellow-100 hover:to-orange-100 transition-colors"
+                className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg"
               >
                 <div className="flex items-center space-x-3">
-                  <div className="flex-shrink-0 w-8 h-8 bg-yellow-400 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                  <div className="w-8 h-8 bg-yellow-400 text-white rounded-full flex items-center justify-center font-bold text-sm">
                     {index + 1}
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-800 text-sm">
-                      {winner.name}
-                    </p>
+                    <p className="font-semibold text-gray-800 text-sm">{winner.name}</p>
                     <p className="text-xs text-gray-500">
                       {new Date(winner.wonAt).toLocaleTimeString()}
                     </p>
                   </div>
                 </div>
-                
-                <div className="flex items-center space-x-2">
-                  {winner.prizeName && (
-                    <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
-                      {winner.prizeName}
-                    </span>
-                  )}
-                  <div className="text-yellow-500">
-                    🏆
-                  </div>
-                </div>
+                {winner.prizeName && (
+                  <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
+                    {winner.prizeName}
+                  </span>
+                )}
               </motion.div>
             ))}
           </div>
-
-          {/* Congratulations Message */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg text-center"
-          >
-            <p className="text-green-800 font-semibold">
-              🎉 Congratulations to all winners! 🎉
-            </p>
-            <p className="text-green-600 text-sm mt-1">
-              Winners have been added to the winners list
-            </p>
-          </motion.div>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {currentWinners.length === 0 && !isDrawing && (
-        <div className="text-center py-8 text-gray-500">
-          <Trophy className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-          <p className="text-lg font-medium mb-2">Ready to Draw Winners</p>
-          <p className="text-sm">
-            {participants.length > 0 
-              ? `Click "Start Drawing" to select ${drawCount} random winner${drawCount > 1 ? 's' : ''}`
-              : 'Add participants first to start drawing'
-            }
-          </p>
         </div>
       )}
     </div>
   );
 };
-
 export default MultiDrawingArea;
