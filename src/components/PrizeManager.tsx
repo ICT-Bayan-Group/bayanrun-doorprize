@@ -27,8 +27,11 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    image: '',
     quota: 1
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +41,7 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
       onUpdatePrize(editingPrize.id, {
         name: formData.name,
         description: formData.description,
+        image: formData.image,
         quota: formData.quota,
         remainingQuota: formData.quota
       });
@@ -46,12 +50,15 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
       onAddPrize({
         name: formData.name,
         description: formData.description,
+        image: formData.image,
         quota: formData.quota,
         remainingQuota: formData.quota
       });
     }
 
-    setFormData({ name: '', description: '', quota: 1 });
+    setFormData({ name: '', description: '', image: '', quota: 1 });
+    setImageFile(null);
+    setImagePreview('');
     setShowAddForm(false);
   };
 
@@ -59,16 +66,45 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
     setFormData({
       name: prize.name,
       description: prize.description,
+      image: prize.image || '',
       quota: prize.quota
     });
+    setImagePreview(prize.image || '');
     setEditingPrize(prize);
     setShowAddForm(true);
   };
 
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (2MB max)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File size must be less than 2MB');
+      return;
+    }
+
+    // Validate file type
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      alert('Only JPG, PNG, and WebP files are supported');
+      return;
+    }
+
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      setImagePreview(result);
+      setFormData(prev => ({ ...prev, image: result }));
+    };
+    reader.readAsDataURL(file);
+  };
   const handleCancel = () => {
     setShowAddForm(false);
     setEditingPrize(null);
-    setFormData({ name: '', description: '', quota: 1 });
+    setFormData({ name: '', description: '', image: '', quota: 1 });
+    setImageFile(null);
+    setImagePreview('');
   };
 
   return (
@@ -85,7 +121,7 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            Add
+            Add Prize
           </button>
         )}
       </div>
@@ -101,34 +137,58 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nama Hadiah
+                  Prize Name
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border italic border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                  placeholder="Contoh : Iphone, Smartwatch, Voucher Hadiah"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  placeholder="e.g., Grand Prize, Smartphone, Gift Voucher"
                   required
                 />
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Deskripsi
+                  Description
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                  placeholder="Keterangan hadiah..."
+                  placeholder="Prize description..."
                   rows={2}
                 />
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Kuota (Jumlah Hadiah)
+                  Prize Image
+                </label>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp"
+                  onChange={handleImageUpload}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Supported formats: JPG, PNG, WebP (max 2MB)
+                </p>
+                {imagePreview && (
+                  <div className="mt-3">
+                    <img
+                      src={imagePreview}
+                      alt="Prize preview"
+                      className="h-20 w-20 object-cover rounded-lg border"
+                    />
+                  </div>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Quota (Number of Winners)
                 </label>
                 <input
                   type="number"
@@ -145,14 +205,14 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
                   type="submit"
                   className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                 >
-                  {editingPrize ? 'Update Hadiah' : 'Tambah Hadiah'}
+                  {editingPrize ? 'Update Prize' : 'Add Prize'}
                 </button>
                 <button
                   type="button"
                   onClick={handleCancel}
                   className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
                 >
-                  Batal
+                  Cancel
                 </button>
               </div>
             </form>
@@ -207,6 +267,15 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
                   {prize.description && (
                     <p className="text-sm text-gray-600 mt-1">{prize.description}</p>
                   )}
+                  {prize.image && (
+                    <div className="mt-2">
+                      <img
+                        src={prize.image}
+                        alt={prize.name}
+                        className="h-12 w-12 object-cover rounded border"
+                      />
+                    </div>
+                  )}
                   <div className="flex items-center gap-4 mt-2">
                     <span className={`text-sm px-2 py-1 rounded ${
                       prize.remainingQuota > 0 
@@ -250,8 +319,8 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
         {prizes.length === 0 && (
           <div className="text-center py-8 text-gray-500">
             <Gift className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Tidak ada Hadiah</p>
-            <p className="text-sm">Masukan hadiah untuk mulai mengatur acara doorprize Anda</p>
+            <p>No prizes added yet</p>
+            <p className="text-sm">Add prizes to start organizing your doorprize event</p>
           </div>
         )}
       </div>
