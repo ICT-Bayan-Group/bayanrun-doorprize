@@ -91,11 +91,16 @@ export const importFromFile = (file: File): Promise<string[]> => {
 
 export const exportToCsv = (participants: Participant[], winners: Participant[]) => {
   const csvContent = [
-    ['Participants'],
-    ...participants.map(p => [p.name]),
+    ['Winner Name', 'Prize Name', 'Prize Image', 'Draw Time'],
+    ...winners.map(w => [
+      w.name, 
+      (w as any).prizeName || 'No Prize', 
+      (w as any).prizeImage || 'No Image',
+      new Date((w as any).wonAt || w.addedAt).toLocaleString()
+    ]),
     [''],
-    ['Winners'],
-    ...winners.map(w => [w.name, new Date(w.addedAt).toLocaleString()])
+    ['Remaining Participants'],
+    ...participants.map(p => [p.name, '', '', new Date(p.addedAt).toLocaleString()])
   ];
 
   const csv = Papa.unparse(csvContent);

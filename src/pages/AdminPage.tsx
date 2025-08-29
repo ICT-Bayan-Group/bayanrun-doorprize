@@ -12,14 +12,6 @@ import WinnerHistory from '../components/WinnerHistory';
 import PrizeManager from '../components/PrizeManager';
 import SettingsModal from '../components/SettingsModal';
 
-interface DrawingState {
-  isDrawing: boolean;
-  currentWinners: Winner[];
-  showConfetti: boolean;
-  participants: Participant[];
-  selectedPrizeName?: string;
-}
-
 const defaultSettings: AppSettings = {
   primaryColor: '#2563eb',
   secondaryColor: '#1d4ed8',
@@ -27,13 +19,6 @@ const defaultSettings: AppSettings = {
   soundEnabled: true,
   backgroundMusic: false,
   multiDrawCount: 10,
-};
-
-const defaultDrawingState: DrawingState = {
-  isDrawing: false,
-  currentWinners: [],
-  showConfetti: false,
-  participants: []
 };
 
 const AdminPage: React.FC = () => {
@@ -51,7 +36,12 @@ const AdminPage: React.FC = () => {
   const [showConfetti, setShowConfetti] = useState(false);
 
   // Sync drawing state to localStorage for display page
-  const [, setDrawingState] = useLocalStorage<DrawingState>('doorprize-drawing-state', defaultDrawingState);
+  const [, setDrawingState] = useLocalStorage('doorprize-drawing-state', {
+    isDrawing: false,
+    currentWinners: [],
+    showConfetti: false,
+    participants: []
+  });
 
   const addParticipant = useCallback((name: string) => {
     const newParticipant: Participant = {
@@ -96,7 +86,7 @@ const AdminPage: React.FC = () => {
 
   const startDrawing = useCallback(() => {
     if (participants.length === 0 || isDrawing) return;
-
+    
     setIsDrawing(true);
     setCurrentWinners([]);
     setShowConfetti(false);
@@ -107,6 +97,8 @@ const AdminPage: React.FC = () => {
       currentWinners: [],
       showConfetti: false,
       selectedPrizeName: selectedPrize?.name,
+      selectedPrizeImage: selectedPrize?.image,
+      selectedPrizeQuota: selectedPrize?.quota, // TAMBAHKAN INI
       participants: participants
     });
   }, [participants, isDrawing, selectedPrize, setDrawingState]);
@@ -173,6 +165,7 @@ const AdminPage: React.FC = () => {
       currentWinners: newWinners,
       showConfetti: true,
       selectedPrizeName: selectedPrize?.name,
+      selectedPrizeImage: selectedPrize?.image,
       participants: participants.filter(p => !selectedParticipants.some(sp => sp.id === p.id))
     });
     
@@ -211,10 +204,6 @@ const AdminPage: React.FC = () => {
       setSelectedPrize(null);
     }
   }, [setPrizes, selectedPrize]);
-
-  const handleClearWinners = () => {
-    setCurrentWinners([]);
-  }
 
   const handleExport = useCallback(() => {
     exportToCsv(participants, winners as any);
@@ -294,13 +283,13 @@ const AdminPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-blue-800">Display Page</h3>
-              <p className="text-blue-600">Buka halaman ini di proyektor/layar besar untuk audiens</p>
+              <p className="text-blue-600">Open this page on projector/large screen for audience</p>
             </div>
             <button
               onClick={openDisplayPage}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
             >
-              Buka Display Page
+              Open Display Page
             </button>
           </div>
         </div>
@@ -340,7 +329,6 @@ const AdminPage: React.FC = () => {
               settings={settings}
               selectedPrize={selectedPrize}
               onStartDraw={startDrawing}
-              onClearWinners={handleClearWinners} 
               onStopDraw={stopDrawing}
               canDraw={canDraw}
               isLocked={isLocked}
@@ -351,6 +339,7 @@ const AdminPage: React.FC = () => {
           <div>
             <WinnerHistory
               winners={winners}
+              prizes={prizes}
               onExport={handleExport}
               onPrint={handlePrint}
               isLocked={isLocked}

@@ -17,6 +17,7 @@ export interface Prize {
   id: string;
   name: string;
   description: string;
+  image?: string;
   quota: number;
   remainingQuota: number;
   createdAt: Date;
