@@ -312,7 +312,6 @@ const DisplayPage: React.FC = () => {
                       <div className="relative z-10">
                         <div className="text-6xl mb-6">🏆</div>
                         <div className="text-3xl font-bold text-emerald-500 mb-4">
-                          #{index + 1}
                         </div>
                         <p className="text-2xl font-bold text-slate-800 mb-6 leading-tight">
                           {winner.name}
@@ -395,7 +394,6 @@ const DisplayPage: React.FC = () => {
                               transition={{ duration: 1.5, repeat: Infinity }}
                               className="text-4xl font-black text-emerald-500"
                             >
-                              #{columnIndex + 1}
                             </motion.div>
                           </div>
                           
