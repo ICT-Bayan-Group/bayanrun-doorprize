@@ -453,12 +453,6 @@ const DisplayPage: React.FC = () => {
               }}
               className="text-center"
             >
-              <p className="text-3xl font-black bg-clip-text italic drop-shadow-lg">
-                🎉 THE WINNERS ARE COMING... 🎉
-              </p>
-              <p className="text-lg text-gray-600 mt-2 font-semibold">
-                Doorprize Bayan Run 2025
-              </p>
             </motion.div>
           </motion.div>
         ) : (
@@ -504,14 +498,6 @@ const DisplayPage: React.FC = () => {
                   <span className="text-blue-800 font-bold">{i + 1}</span>
                 </motion.div>
               ))}
-            </div>
-            
-            <p className="text-2xl opacity-60 mb-8">
-             Menunggu untuk memulai pengundian...
-            </p>
-            
-            <div className="text-lg opacity-50 uppercase">
-              <p>Semoga Beruntung untuk semua partisipan Bayan Run 2025 !!</p>
             </div>
           </motion.div>
         )}
