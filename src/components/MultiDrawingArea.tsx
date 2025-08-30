@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Square, Trophy, Users, Gift, Trash2, AlertTriangle, Clock, Target } from 'lucide-react';
 import { Participant, Winner, AppSettings, Prize } from '../types';
@@ -14,6 +14,9 @@ interface MultiDrawingAreaProps {
   onClearWinners: () => void;
   canDraw: boolean;
   isLocked: boolean;
+  // Add new props for real-time prize synchronization
+  prizes: Prize[];
+  selectedPrizeId: string | null;
 }
 
 const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
@@ -21,15 +24,23 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
   currentWinners,
   isDrawing,
   settings,
-  selectedPrize,
+  selectedPrize: legacySelectedPrize,
   onStartDraw,
   onStopDraw,
   onClearWinners,
   canDraw,
   isLocked,
+  prizes,
+  selectedPrizeId,
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [drawingDuration, setDrawingDuration] = useState(0);
+
+  // Real-time prize synchronization: Always get the latest prize data
+  const selectedPrize = useMemo(() => {
+    if (!selectedPrizeId) return null;
+    return prizes.find(prize => prize.id === selectedPrizeId) || null;
+  }, [prizes, selectedPrizeId]);
 
   // Calculate draw count based on selected prize quota
   const drawCount = selectedPrize
@@ -151,7 +162,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         )}
       </div>
 
-      {/* Prize Selection Status */}
+      {/* Prize Selection Status - Now shows real-time updated data */}
       {selectedPrize ? (
         <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border-2 border-purple-200">
           <div className="flex items-center gap-4">
@@ -176,6 +187,10 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
               <div className="flex items-center gap-2 mb-1">
                 <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
                   Selected Prize
+                </span>
+                {/* Add indicator for real-time sync */}
+                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+                  Live Updated
                 </span>
               </div>
               <h3 className="font-semibold text-purple-800 text-lg">{selectedPrize.name}</h3>
@@ -346,7 +361,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         </motion.div>
       )}
 
-      {/* Current Winners Display */}
+      {/* Current Winners Display - Also uses real-time prize data */}
       {currentWinners.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-4">

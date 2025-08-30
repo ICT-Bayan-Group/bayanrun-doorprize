@@ -391,13 +391,7 @@ const DisplayPage: React.FC = () => {
                   transition={{ duration: 0.6, ease: "easeOut" }}
                   className="text-center"
                 >
-                  <motion.h2
-                    initial={{ y: -50, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    className="text-6xl font-bold text-slate-800 mb-12"
-                  >
-                    Drawing Winner...
-                  </motion.h2>
+                
 
                   <div className="bg-white rounded-3xl p-12 shadow-2xl border-4 border-slate-200 relative overflow-hidden max-w-md mx-auto">
                     {/* Prize Background */}
@@ -474,17 +468,7 @@ const DisplayPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <motion.div
-                    animate={{ opacity: [0.7, 1, 0.7] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className="mt-8"
-                  >
-                    {!isSpinning && (
-                      <p className="text-2xl text-slate-600 font-semibold">
-                        Waiting for draw to start...
-                      </p>
-                    )}
-                  </motion.div>
+
                 </motion.div>
               ) : (
                 // Multi Slot Machines for quota > 1
