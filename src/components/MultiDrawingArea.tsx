@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Square, Trophy, Users, Gift, Trash2, AlertTriangle, Clock, Target } from 'lucide-react';
+import { Play, Square, Trophy, Users, Gift, Trash2, AlertTriangle, Clock, Target, CheckCircle, XCircle } from 'lucide-react';
 import { Participant, Winner, AppSettings, Prize } from '../types';
 
 interface MultiDrawingAreaProps {
@@ -14,6 +14,19 @@ interface MultiDrawingAreaProps {
   onClearWinners: () => void;
   canDraw: boolean;
   isLocked: boolean;
+  prizes: Prize[];
+  selectedPrizeId: string | null;
+  onRemoveParticipants: (participantIds: string[]) => void;
+}
+
+// Enhanced status types for better state management
+type RemovalStatus = 'idle' | 'processing' | 'success' | 'error';
+
+interface WinnerProcessingState {
+  status: RemovalStatus;
+  processedCount: number;
+  totalCount: number;
+  error?: string;
 }
 
 const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
@@ -21,23 +34,45 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
   currentWinners,
   isDrawing,
   settings,
-  selectedPrize,
+  selectedPrize: legacySelectedPrize,
   onStartDraw,
   onStopDraw,
   onClearWinners,
   canDraw,
   isLocked,
+  prizes,
+  selectedPrizeId,
+  onRemoveParticipants,
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [drawingDuration, setDrawingDuration] = useState(0);
+  
+  // Enhanced winner processing state
+  const [winnerProcessing, setWinnerProcessing] = useState<WinnerProcessingState>({
+    status: 'idle',
+    processedCount: 0,
+    totalCount: 0
+  });
 
-  // Calculate draw count based on selected prize quota
+  // Real-time prize synchronization
+  const selectedPrize = useMemo(() => {
+    if (!selectedPrizeId) return null;
+    return prizes.find(prize => prize.id === selectedPrizeId) || null;
+  }, [prizes, selectedPrizeId]);
+
+  // Calculate available participants (excluding current winners)
+  const availableParticipants = useMemo(() => {
+    const winnerNames = currentWinners.map(winner => winner.name);
+    return participants.filter(participant => !winnerNames.includes(participant.name));
+  }, [participants, currentWinners]);
+
+  // Calculate draw count
   const drawCount = selectedPrize
-    ? Math.min(selectedPrize.remainingQuota, participants.length)
-    : Math.min(settings.multiDrawCount, participants.length);
+    ? Math.min(selectedPrize.remainingQuota, availableParticipants.length)
+    : Math.min(settings.multiDrawCount, availableParticipants.length);
 
-  // Timer for drawing duration display
-  React.useEffect(() => {
+  // Timer for drawing duration
+  useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isDrawing) {
       interval = setInterval(() => {
@@ -49,71 +84,150 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     return () => clearInterval(interval);
   }, [isDrawing]);
 
-  const handleDeleteClick = () => {
-    setShowDeleteConfirm(true);
-  };
+  // Enhanced winner processing with better state management
+  const processWinnerRemoval = useCallback(async (winners: Winner[]) => {
+    if (winners.length === 0) return;
 
-  const handleConfirmDelete = () => {
-    onClearWinners();
-    setShowDeleteConfirm(false);
-  };
+    const winnerParticipantIds = winners.map(winner => {
+      const participant = availableParticipants.find(p => p.name === winner.name);
+      return participant?.id;
+    }).filter(Boolean) as string[];
 
-  const handleCancelDelete = () => {
-    setShowDeleteConfirm(false);
-  };
+    if (winnerParticipantIds.length === 0) return;
 
-  const handleDrawClick = () => {
+    setWinnerProcessing({
+      status: 'processing',
+      processedCount: 0,
+      totalCount: winnerParticipantIds.length
+    });
+
+    try {
+      // Simulate processing steps for better UX
+      for (let i = 0; i < winnerParticipantIds.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 200)); // Small delay for visual feedback
+        setWinnerProcessing(prev => ({
+          ...prev,
+          processedCount: i + 1
+        }));
+      }
+
+      // Perform the actual removal
+      onRemoveParticipants(winnerParticipantIds);
+
+      setWinnerProcessing({
+        status: 'success',
+        processedCount: winnerParticipantIds.length,
+        totalCount: winnerParticipantIds.length
+      });
+
+      // Reset status after showing success
+      setTimeout(() => {
+        setWinnerProcessing({
+          status: 'idle',
+          processedCount: 0,
+          totalCount: 0
+        });
+      }, 2000);
+
+    } catch (error) {
+      setWinnerProcessing({
+        status: 'error',
+        processedCount: 0,
+        totalCount: winnerParticipantIds.length,
+        error: 'Failed to remove winners from participant list'
+      });
+
+      // Reset error status after showing it
+      setTimeout(() => {
+        setWinnerProcessing({
+          status: 'idle',
+          processedCount: 0,
+          totalCount: 0
+        });
+      }, 3000);
+    }
+  }, [availableParticipants, onRemoveParticipants]);
+
+  // Enhanced draw validation
+  const validateDraw = useCallback((): { isValid: boolean; message?: string } => {
     if (!selectedPrize) {
-      alert('Please select a prize before starting the draw.');
-      return;
+      return { isValid: false, message: 'Please select a prize before starting the draw.' };
     }
     if (selectedPrize.remainingQuota === 0) {
-      alert('This prize has no remaining quota.');
+      return { isValid: false, message: 'This prize has no remaining quota.' };
+    }
+    if (availableParticipants.length === 0) {
+      return { isValid: false, message: 'No participants available for drawing (all have already won).' };
+    }
+    if (drawCount === 0) {
+      return { isValid: false, message: 'No winners can be drawn with current settings.' };
+    }
+    return { isValid: true };
+  }, [selectedPrize, availableParticipants, drawCount]);
+
+  // FIXED: Enhanced handleDrawClick to reset winner display
+  const handleDrawClick = useCallback(() => {
+    const validation = validateDraw();
+    if (!validation.isValid) {
+      alert(validation.message);
       return;
     }
     
-    // Start the draw but don't start spinning yet
+    // Reset winner display when starting new draw
+    const currentState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
+    const updatedState = {
+      ...currentState,
+      showWinnerDisplay: false, // Reset winner display
+      currentWinners: [], // Clear current winners
+      shouldStartSpinning: false // Reset spinning state
+    };
+    localStorage.setItem('doorprize-drawing-state', JSON.stringify(updatedState));
+    
     onStartDraw();
-  };
+  }, [validateDraw, onStartDraw]);
 
-  // New function to start the spinning animation
-  const handleStartSpinning = () => {
-    // Update localStorage to trigger spinning on display page
+  const handleStartSpinning = useCallback(() => {
     const currentState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
     const updatedState = {
       ...currentState,
       shouldStartSpinning: true
     };
     localStorage.setItem('doorprize-drawing-state', JSON.stringify(updatedState));
-  };
+  }, []);
 
-  // Generate winners when stopping the draw
-  const handleStopDrawClick = () => {
-    // Generate final winners from current participants
+  const handleStopDrawClick = useCallback(async () => {
+    // Generate final winners
     const finalWinners = generateWinners();
     
-    // Update localStorage to stop spinning
+    // Update localStorage to stop spinning and enable persistent winner display
     const currentState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
     const updatedState = {
       ...currentState,
-      shouldStartSpinning: false
+      shouldStartSpinning: false,
+      showWinnerDisplay: true, // Enable persistent winner display
+      finalWinners: finalWinners
     };
     localStorage.setItem('doorprize-drawing-state', JSON.stringify(updatedState));
     
-    // Call onStopDraw with the generated winners
+    // Stop the draw first
     onStopDraw(finalWinners);
-  };
+    
+    // Process winner removal after draw is complete
+    if (finalWinners.length > 0) {
+      // Small delay to ensure draw completion
+      setTimeout(() => {
+        processWinnerRemoval(finalWinners);
+      }, 500);
+    }
+  }, [onStopDraw, processWinnerRemoval]);
 
-  // Function to generate winners
-  const generateWinners = (): Winner[] => {
-    if (!selectedPrize || participants.length === 0) return [];
+  const generateWinners = useCallback((): Winner[] => {
+    if (!selectedPrize || availableParticipants.length === 0) return [];
 
-    // Shuffle participants and select winners
-    const shuffledParticipants = [...participants].sort(() => Math.random() - 0.5);
+    const shuffledParticipants = [...availableParticipants].sort(() => Math.random() - 0.5);
     const selectedParticipants = shuffledParticipants.slice(0, drawCount);
 
-    // Convert to Winner format
-    const winners: Winner[] = selectedParticipants.map((participant, index) => ({
+    return selectedParticipants.map((participant, index) => ({
       id: `${participant.id}-${Date.now()}-${index}`,
       name: participant.name,
       wonAt: new Date(),
@@ -121,15 +235,41 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
       prizeName: selectedPrize.name,
       drawSession: `${selectedPrize.id}-${Date.now()}`
     }));
+  }, [selectedPrize, availableParticipants, drawCount]);
 
-    return winners;
+  // FIXED: Enhanced handleDeleteClick to also reset winner display
+  const handleDeleteClick = () => setShowDeleteConfirm(true);
+  
+  const handleConfirmDelete = () => {
+    // Reset winner display when clearing winners
+    const currentState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
+    const updatedState = {
+      ...currentState,
+      showWinnerDisplay: false, // Disable persistent winner display
+      currentWinners: [],
+      finalWinners: []
+    };
+    localStorage.setItem('doorprize-drawing-state', JSON.stringify(updatedState));
+    
+    onClearWinners();
+    setShowDeleteConfirm(false);
   };
+  
+  const handleCancelDelete = () => setShowDeleteConfirm(false);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  // Check if spinning has started
+  const getSpinningState = () => {
+    const currentState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
+    return currentState.shouldStartSpinning;
+  };
+
+  const shouldStartSpinning = getSpinningState();
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
@@ -177,6 +317,9 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                 <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
                   Selected Prize
                 </span>
+                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+                  Live Updated
+                </span>
               </div>
               <h3 className="font-semibold text-purple-800 text-lg">{selectedPrize.name}</h3>
               <p className="text-purple-600 text-sm flex items-center gap-2">
@@ -204,9 +347,12 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
           <div className="flex items-center gap-2 mb-1">
             <Users className="w-4 h-4 text-blue-600" />
-            <span className="text-blue-600 font-medium text-sm">Participants</span>
+            <span className="text-blue-600 font-medium text-sm">Available</span>
           </div>
-          <p className="text-2xl font-bold text-blue-800">{participants.length}</p>
+          <p className="text-2xl font-bold text-blue-800">{availableParticipants.length}</p>
+          <p className="text-xs text-blue-600">
+            {participants.length - availableParticipants.length} already won
+          </p>
         </div>
         
         <div className="p-3 bg-green-50 rounded-lg border border-green-100">
@@ -218,15 +364,100 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         </div>
       </div>
 
+      {/* Warnings */}
+      {availableParticipants.length === 0 && participants.length > 0 && (
+        <div className="mb-6 p-4 bg-red-50 rounded-lg border border-red-200">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+            <div>
+              <p className="font-medium text-red-800">All Participants Have Won</p>
+              <p className="text-red-600 text-sm">
+                No participants available for drawing. All {participants.length} participants have already won prizes.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Winner Processing Status */}
+      {winnerProcessing.status !== 'idle' && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`mb-6 p-4 rounded-lg border ${
+            winnerProcessing.status === 'processing' ? 'bg-blue-50 border-blue-200' :
+            winnerProcessing.status === 'success' ? 'bg-green-50 border-green-200' :
+            'bg-red-50 border-red-200'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            {winnerProcessing.status === 'processing' && (
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full"
+              />
+            )}
+            {winnerProcessing.status === 'success' && (
+              <CheckCircle className="w-5 h-5 text-green-600" />
+            )}
+            {winnerProcessing.status === 'error' && (
+              <XCircle className="w-5 h-5 text-red-600" />
+            )}
+            
+            <div className="flex-1">
+              <p className={`font-medium ${
+                winnerProcessing.status === 'processing' ? 'text-blue-800' :
+                winnerProcessing.status === 'success' ? 'text-green-800' :
+                'text-red-800'
+              }`}>
+                {winnerProcessing.status === 'processing' && 
+                  `Processing Winners (${winnerProcessing.processedCount}/${winnerProcessing.totalCount})`
+                }
+                {winnerProcessing.status === 'success' && 
+                  `Successfully processed ${winnerProcessing.totalCount} winner${winnerProcessing.totalCount > 1 ? 's' : ''}`
+                }
+                {winnerProcessing.status === 'error' && 'Processing Failed'}
+              </p>
+              
+              {winnerProcessing.status === 'processing' && (
+                <div className="mt-2 w-full bg-blue-200 rounded-full h-2">
+                  <motion.div 
+                    className="bg-blue-600 h-2 rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ 
+                      width: `${(winnerProcessing.processedCount / winnerProcessing.totalCount) * 100}%` 
+                    }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+              )}
+              
+              {winnerProcessing.status === 'success' && (
+                <p className="text-green-600 text-sm">
+                  Winners removed from participant list automatically
+                </p>
+              )}
+              
+              {winnerProcessing.status === 'error' && (
+                <p className="text-red-600 text-sm">
+                  {winnerProcessing.error || 'An error occurred while processing winners'}
+                </p>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Drawing Controls */}
       <div className="mb-6">
         <div className="flex space-x-3">
           {!isDrawing ? (
             <button
               onClick={handleDrawClick}
-              disabled={!canDraw || isLocked || !selectedPrize}
+              disabled={!canDraw || isLocked || !selectedPrize || availableParticipants.length === 0}
               className={`flex items-center px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex-1 justify-center ${
-                canDraw && !isLocked && selectedPrize
+                canDraw && !isLocked && selectedPrize && availableParticipants.length > 0
                   ? 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transform hover:scale-105'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
@@ -234,36 +465,30 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
               <Play className="w-5 h-5 mr-2" />
               {!selectedPrize 
                 ? 'Select Prize First' 
-                : participants.length === 0 
-                  ? 'No Participants' 
+                : availableParticipants.length === 0 
+                  ? 'No Available Participants' 
                   : `Prepare Draw (${drawCount} Winners)`
               }
             </button>
           ) : (
             <>
-              {/* Check if spinning has started by looking at localStorage */}
-              {(() => {
-                const currentState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
-                const shouldStartSpinning = currentState.shouldStartSpinning;
-                
-                return !shouldStartSpinning ? (
-                  <button
-                    onClick={handleStartSpinning}
-                    className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex-1 justify-center"
-                  >
-                    <Play className="w-5 h-5 mr-2" />
-                    Start Spinning!
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleStopDrawClick}
-                    className="flex items-center px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex-1 justify-center"
-                  >
-                    <Square className="w-5 h-5 mr-2" />
-                    Stop Drawing & Show Winners
-                  </button>
-                );
-              })()}
+              {!shouldStartSpinning ? (
+                <button
+                  onClick={handleStartSpinning}
+                  className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex-1 justify-center"
+                >
+                  <Play className="w-5 h-5 mr-2" />
+                  Start Spinning!
+                </button>
+              ) : (
+                <button
+                  onClick={handleStopDrawClick}
+                  className="flex items-center px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex-1 justify-center"
+                >
+                  <Square className="w-5 h-5 mr-2" />
+                  Stop Drawing & Show Winners
+                </button>
+              )}
             </>
           )}
 
@@ -293,13 +518,10 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                   className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full"
                 />
                 <span className="text-blue-600 font-medium">
-                  {(() => {
-                    const currentState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
-                    const shouldStartSpinning = currentState.shouldStartSpinning;
-                    return shouldStartSpinning 
-                      ? 'Drawing in progress... Click "Stop Drawing" when ready!'
-                      : 'Draw prepared. Click "Start Spinning" to begin animation!';
-                  })()}
+                  {shouldStartSpinning 
+                    ? 'Drawing in progress... Click "Stop Drawing" when ready!'
+                    : 'Draw prepared. Click "Start Spinning" to begin animation!'
+                  }
                 </span>
               </div>
             </div>
@@ -325,7 +547,8 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
             </div>
 
             <p className="text-gray-600 mb-6">
-              Are you sure you want to clear all current winners? This will remove {currentWinners.length} winner{currentWinners.length !== 1 ? 's' : ''} from the display. This action cannot be undone.
+              Are you sure you want to clear all current winners? This will remove {currentWinners.length} winner{currentWinners.length !== 1 ? 's' : ''} from the display. 
+              <strong className="text-red-600"> Note: This will NOT restore winners back to the participant list.</strong>
             </p>
 
             <div className="flex space-x-3 justify-end">

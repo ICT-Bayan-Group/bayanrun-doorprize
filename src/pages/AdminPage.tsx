@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import Confetti from 'react-confetti';
 import { Participant, Winner, AppSettings, Prize } from '../types';
@@ -29,11 +29,17 @@ const AdminPage: React.FC = () => {
   const [lastWinners, setLastWinners] = useLocalStorage<Winner[]>('doorprize-last-winners', []);
   
   const [currentWinners, setCurrentWinners] = useState<Winner[]>(lastWinners);
-  const [selectedPrize, setSelectedPrize] = useState<Prize | null>(null);
+  const [selectedPrizeId, setSelectedPrizeId] = useState<string | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+
+  // Real-time prize synchronization
+  const selectedPrize = useMemo(() => {
+    if (!selectedPrizeId) return null;
+    return prizes.find(prize => prize.id === selectedPrizeId) || null;
+  }, [prizes, selectedPrizeId]);
 
   // Sync drawing state to localStorage for display page
   const [, setDrawingState] = useLocalStorage('doorprize-drawing-state', {
@@ -77,6 +83,15 @@ const AdminPage: React.FC = () => {
     });
   }, [setParticipants, setDrawingState]);
 
+  // FIX: Add the missing removeParticipants function
+  const removeParticipants = useCallback((participantIds: string[]) => {
+    setParticipants(prev => {
+      const updated = prev.filter(p => !participantIds.includes(p.id));
+      setDrawingState(prevState => ({ ...prevState, participants: updated }));
+      return updated;
+    });
+  }, [setParticipants, setDrawingState]);
+
   const clearAllParticipants = useCallback(() => {
     if (window.confirm('Are you sure you want to clear all participants?')) {
       setParticipants([]);
@@ -98,38 +113,42 @@ const AdminPage: React.FC = () => {
       showConfetti: false,
       selectedPrizeName: selectedPrize?.name,
       selectedPrizeImage: selectedPrize?.image,
-      selectedPrizeQuota: selectedPrize?.quota, // TAMBAHKAN INI
+      selectedPrizeQuota: selectedPrize?.quota,
       participants: participants
     });
   }, [participants, isDrawing, selectedPrize, setDrawingState]);
 
-  const stopDrawing = useCallback(() => {
+  const stopDrawing = useCallback((finalWinners?: Winner[]) => {
     if (!isDrawing) return;
 
-    const drawCount = selectedPrize ? 
-      Math.min(selectedPrize.remainingQuota, participants.length) : 
-      Math.min(settings.multiDrawCount, participants.length);
-    
-    // Select random winners
-    const shuffled = [...participants].sort(() => Math.random() - 0.5);
-    const selectedParticipants = shuffled.slice(0, drawCount);
-    
-    const sessionId = Date.now().toString();
-    const newWinners: Winner[] = selectedParticipants.map((participant) => ({
-      id: participant.id,
-      name: participant.name,
-      wonAt: new Date(),
-      prizeId: selectedPrize?.id,
-      prizeName: selectedPrize?.name,
-      drawSession: sessionId,
-    }));
-    
-    // Remove winners from participants
-    setParticipants(prev => {
-      const updated = prev.filter(p => !selectedParticipants.some(sp => sp.id === p.id));
-      setDrawingState(prevState => ({ ...prevState, participants: updated }));
-      return updated;
-    });
+    let newWinners: Winner[];
+
+    // Use provided winners or generate new ones
+    if (finalWinners) {
+      newWinners = finalWinners;
+    } else {
+      const availableParticipants = participants.filter(p => 
+        !currentWinners.some(w => w.name === p.name)
+      );
+      
+      const drawCount = selectedPrize ? 
+        Math.min(selectedPrize.remainingQuota, availableParticipants.length) : 
+        Math.min(settings.multiDrawCount, availableParticipants.length);
+      
+      // Select random winners
+      const shuffled = [...availableParticipants].sort(() => Math.random() - 0.5);
+      const selectedParticipants = shuffled.slice(0, drawCount);
+      
+      const sessionId = Date.now().toString();
+      newWinners = selectedParticipants.map((participant) => ({
+        id: `winner-${participant.id}-${Date.now()}`,
+        name: participant.name,
+        wonAt: new Date(),
+        prizeId: selectedPrize?.id,
+        prizeName: selectedPrize?.name,
+        drawSession: sessionId,
+      }));
+    }
     
     // Add to winners list
     setWinners(prev => [...newWinners, ...prev]);
@@ -144,7 +163,7 @@ const AdminPage: React.FC = () => {
       
       // Clear selected prize if quota is exhausted
       if (selectedPrize.remainingQuota <= newWinners.length) {
-        setSelectedPrize(null);
+        setSelectedPrizeId(null);
       }
     }
     
@@ -166,7 +185,7 @@ const AdminPage: React.FC = () => {
       showConfetti: true,
       selectedPrizeName: selectedPrize?.name,
       selectedPrizeImage: selectedPrize?.image,
-      participants: participants.filter(p => !selectedParticipants.some(sp => sp.id === p.id))
+      participants: participants // Keep original participants for now
     });
     
     // Play sound effect
@@ -180,7 +199,14 @@ const AdminPage: React.FC = () => {
     }
     
     setIsDrawing(false);
-  }, [isDrawing, participants, selectedPrize, settings, setParticipants, setWinners, setPrizes, setLastWinners, setDrawingState]);
+  }, [isDrawing, participants, currentWinners, selectedPrize, settings, setWinners, setPrizes, setLastWinners, setDrawingState, setSelectedPrizeId]);
+
+  // Clear winners function
+  const clearCurrentWinners = useCallback(() => {
+    setCurrentWinners([]);
+    setLastWinners([]);
+    setDrawingState(prev => ({ ...prev, currentWinners: [], showConfetti: false }));
+  }, [setLastWinners, setDrawingState]);
 
   // Prize management functions
   const addPrize = useCallback((prizeData: Omit<Prize, 'id' | 'createdAt'>) => {
@@ -200,10 +226,16 @@ const AdminPage: React.FC = () => {
 
   const deletePrize = useCallback((id: string) => {
     setPrizes(prev => prev.filter(prize => prize.id !== id));
-    if (selectedPrize?.id === id) {
-      setSelectedPrize(null);
+    // Clear selection if deleted prize was selected
+    if (selectedPrizeId === id) {
+      setSelectedPrizeId(null);
     }
-  }, [setPrizes, selectedPrize]);
+  }, [setPrizes, selectedPrizeId]);
+
+  // Prize selection handler
+  const handleSelectPrize = useCallback((prize: Prize | null) => {
+    setSelectedPrizeId(prize?.id || null);
+  }, []);
 
   const handleExport = useCallback(() => {
     exportToCsv(participants, winners as any);
@@ -315,7 +347,7 @@ const AdminPage: React.FC = () => {
               onUpdatePrize={updatePrize}
               onDeletePrize={deletePrize}
               selectedPrize={selectedPrize}
-              onSelectPrize={setSelectedPrize}
+              onSelectPrize={handleSelectPrize}
               isLocked={isLocked}
             />
           </div>
@@ -330,8 +362,12 @@ const AdminPage: React.FC = () => {
               selectedPrize={selectedPrize}
               onStartDraw={startDrawing}
               onStopDraw={stopDrawing}
+              onClearWinners={clearCurrentWinners}
               canDraw={canDraw}
               isLocked={isLocked}
+              prizes={prizes}
+              selectedPrizeId={selectedPrizeId}
+              onRemoveParticipants={removeParticipants} // FIX: Add missing prop
             />
           </div>
 
