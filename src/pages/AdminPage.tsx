@@ -29,14 +29,13 @@ const AdminPage: React.FC = () => {
   const [lastWinners, setLastWinners] = useLocalStorage<Winner[]>('doorprize-last-winners', []);
   
   const [currentWinners, setCurrentWinners] = useState<Winner[]>(lastWinners);
-  // Change from Prize object to string ID for real-time synchronization
   const [selectedPrizeId, setSelectedPrizeId] = useState<string | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
 
-  // Real-time prize synchronization - always get latest prize data
+  // Real-time prize synchronization
   const selectedPrize = useMemo(() => {
     if (!selectedPrizeId) return null;
     return prizes.find(prize => prize.id === selectedPrizeId) || null;
@@ -84,6 +83,15 @@ const AdminPage: React.FC = () => {
     });
   }, [setParticipants, setDrawingState]);
 
+  // FIX: Add the missing removeParticipants function
+  const removeParticipants = useCallback((participantIds: string[]) => {
+    setParticipants(prev => {
+      const updated = prev.filter(p => !participantIds.includes(p.id));
+      setDrawingState(prevState => ({ ...prevState, participants: updated }));
+      return updated;
+    });
+  }, [setParticipants, setDrawingState]);
+
   const clearAllParticipants = useCallback(() => {
     if (window.confirm('Are you sure you want to clear all participants?')) {
       setParticipants([]);
@@ -119,17 +127,21 @@ const AdminPage: React.FC = () => {
     if (finalWinners) {
       newWinners = finalWinners;
     } else {
+      const availableParticipants = participants.filter(p => 
+        !currentWinners.some(w => w.name === p.name)
+      );
+      
       const drawCount = selectedPrize ? 
-        Math.min(selectedPrize.remainingQuota, participants.length) : 
-        Math.min(settings.multiDrawCount, participants.length);
+        Math.min(selectedPrize.remainingQuota, availableParticipants.length) : 
+        Math.min(settings.multiDrawCount, availableParticipants.length);
       
       // Select random winners
-      const shuffled = [...participants].sort(() => Math.random() - 0.5);
+      const shuffled = [...availableParticipants].sort(() => Math.random() - 0.5);
       const selectedParticipants = shuffled.slice(0, drawCount);
       
       const sessionId = Date.now().toString();
       newWinners = selectedParticipants.map((participant) => ({
-        id: participant.id,
+        id: `winner-${participant.id}-${Date.now()}`,
         name: participant.name,
         wonAt: new Date(),
         prizeId: selectedPrize?.id,
@@ -137,13 +149,6 @@ const AdminPage: React.FC = () => {
         drawSession: sessionId,
       }));
     }
-    
-    // Remove winners from participants
-    setParticipants(prev => {
-      const updated = prev.filter(p => !newWinners.some(w => w.id === p.id));
-      setDrawingState(prevState => ({ ...prevState, participants: updated }));
-      return updated;
-    });
     
     // Add to winners list
     setWinners(prev => [...newWinners, ...prev]);
@@ -180,7 +185,7 @@ const AdminPage: React.FC = () => {
       showConfetti: true,
       selectedPrizeName: selectedPrize?.name,
       selectedPrizeImage: selectedPrize?.image,
-      participants: participants.filter(p => !newWinners.some(w => w.id === p.id))
+      participants: participants // Keep original participants for now
     });
     
     // Play sound effect
@@ -194,7 +199,7 @@ const AdminPage: React.FC = () => {
     }
     
     setIsDrawing(false);
-  }, [isDrawing, participants, selectedPrize, settings, setParticipants, setWinners, setPrizes, setLastWinners, setDrawingState]);
+  }, [isDrawing, participants, currentWinners, selectedPrize, settings, setWinners, setPrizes, setLastWinners, setDrawingState, setSelectedPrizeId]);
 
   // Clear winners function
   const clearCurrentWinners = useCallback(() => {
@@ -227,7 +232,7 @@ const AdminPage: React.FC = () => {
     }
   }, [setPrizes, selectedPrizeId]);
 
-  // Prize selection handler that works with Prize object but stores ID
+  // Prize selection handler
   const handleSelectPrize = useCallback((prize: Prize | null) => {
     setSelectedPrizeId(prize?.id || null);
   }, []);
@@ -341,7 +346,7 @@ const AdminPage: React.FC = () => {
               onAddPrize={addPrize}
               onUpdatePrize={updatePrize}
               onDeletePrize={deletePrize}
-              selectedPrize={selectedPrize} // Always up-to-date prize
+              selectedPrize={selectedPrize}
               onSelectPrize={handleSelectPrize}
               isLocked={isLocked}
             />
@@ -354,15 +359,15 @@ const AdminPage: React.FC = () => {
               currentWinners={currentWinners}
               isDrawing={isDrawing}
               settings={settings}
-              selectedPrize={selectedPrize} // Always up-to-date prize
+              selectedPrize={selectedPrize}
               onStartDraw={startDrawing}
               onStopDraw={stopDrawing}
               onClearWinners={clearCurrentWinners}
               canDraw={canDraw}
               isLocked={isLocked}
-              // Additional props for real-time synchronization
               prizes={prizes}
               selectedPrizeId={selectedPrizeId}
+              onRemoveParticipants={removeParticipants} // FIX: Add missing prop
             />
           </div>
 
