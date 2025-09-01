@@ -16,6 +16,7 @@ interface DrawingState {
   drawStartTime?: number;
   finalWinners?: Winner[];
   shouldStartSpinning?: boolean;
+   shouldResetToReady?: boolean;
 }
 
 const DisplayPage: React.FC = () => {
@@ -61,6 +62,7 @@ const DisplayPage: React.FC = () => {
   const [hasShownResults, setHasShownResults] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [currentSingleName, setCurrentSingleName] = useState<string>('');
+  
 
   // Listen for changes in localStorage
   useEffect(() => {
@@ -391,14 +393,12 @@ const DisplayPage: React.FC = () => {
                   transition={{ duration: 0.6, ease: "easeOut" }}
                   className="text-center"
                 >
-                
-
                   <div className="relative overflow-hidden max-w-md mx-auto">
                     {/* Prize Background */}
                     {localState.selectedPrizeImage && (
                       <div className="absolute inset-0 opacity-5">
                         <img
-                          src={localState.selectedPrizeImage}
+                          
                           alt="Prize"
                           className="w-full h-full object-cover rounded-3xl"
                           onError={(e) => {
@@ -410,18 +410,12 @@ const DisplayPage: React.FC = () => {
                     )}
                     
                     <div className="relative z-10">
-                    
-                      
                       <div className="h-32 flex items-center justify-center mb-8">
                         {!isSpinning ? (
                           <div className="text-center">
-                              <span className="text-4xl font-bold text-slate-600 block uppercase">
+                              <span className="text-9xl font-bold text-slate-600 block uppercase">
                                 Ready
                               </span>
-                              <span className="text-sm text-slate-500 block mt-1">
-                                Click Start to Begin
-                              </span>
-                      
                           </div>
                         ) : (
                           <motion.div
@@ -443,7 +437,7 @@ const DisplayPage: React.FC = () => {
                             className="text-center"
                           >
                             <div className="text-blue-800 ">
-                              <span className="text-3xl font-bold ">
+                              <span className="text-5xl font-bold ">
                                 {currentSingleName || '...'}
                               </span>
                             </div>
