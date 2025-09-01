@@ -83,11 +83,42 @@ const AdminPage: React.FC = () => {
     });
   }, [setParticipants, setDrawingState]);
 
-  // FIX: Add the missing removeParticipants function
+  // FIXED: Enhanced removeParticipants with conditional update
   const removeParticipants = useCallback((participantIds: string[]) => {
     setParticipants(prev => {
       const updated = prev.filter(p => !participantIds.includes(p.id));
-      setDrawingState(prevState => ({ ...prevState, participants: updated }));
+      
+      // Safety check: hanya update drawingState jika aman
+      try {
+        const currentDrawingState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
+        
+        // Kondisi aman untuk update:
+        // 1. Tidak sedang drawing
+        // 2. Tidak ada winners yang ditampilkan  
+        // 3. Tidak ada confetti
+        // 4. Tidak ada showWinnerDisplay flag
+        const isSafeToUpdate = !currentDrawingState.isDrawing && 
+                              (!currentDrawingState.currentWinners || currentDrawingState.currentWinners.length === 0) &&
+                              !currentDrawingState.showConfetti &&
+                              !currentDrawingState.showWinnerDisplay;
+        
+        if (isSafeToUpdate) {
+          setDrawingState(prevState => ({ ...prevState, participants: updated }));
+          console.log('Drawing state participants updated safely after winner removal');
+        } else {
+          console.log('Skipped drawing state update to preserve winner display', {
+            isDrawing: currentDrawingState.isDrawing,
+            hasWinners: currentDrawingState.currentWinners?.length > 0,
+            showConfetti: currentDrawingState.showConfetti,
+            showWinnerDisplay: currentDrawingState.showWinnerDisplay
+          });
+        }
+        
+      } catch (error) {
+        console.warn('Failed to update drawing state after participant removal:', error);
+        // Fallback: tetap update participants list meski drawingState gagal
+      }
+      
       return updated;
     });
   }, [setParticipants, setDrawingState]);
@@ -114,7 +145,9 @@ const AdminPage: React.FC = () => {
       selectedPrizeName: selectedPrize?.name,
       selectedPrizeImage: selectedPrize?.image,
       selectedPrizeQuota: selectedPrize?.quota,
-      participants: participants
+      participants: participants,
+      drawStartTime: Date.now(), // Add timestamp for tracking
+      showWinnerDisplay: false // Reset winner display flag
     });
   }, [participants, isDrawing, selectedPrize, setDrawingState]);
 
@@ -178,14 +211,16 @@ const AdminPage: React.FC = () => {
       setDrawingState(prev => ({ ...prev, showConfetti: false }));
     }, 8000);
     
-    // Update drawing state for display page
+    // Update drawing state for display page with persistent winner display
     setDrawingState({
       isDrawing: false,
       currentWinners: newWinners,
       showConfetti: true,
       selectedPrizeName: selectedPrize?.name,
       selectedPrizeImage: selectedPrize?.image,
-      participants: participants // Keep original participants for now
+      participants: participants,
+      finalWinners: newWinners,
+      showWinnerDisplay: true // Flag to maintain winner display
     });
     
     // Play sound effect
@@ -205,7 +240,12 @@ const AdminPage: React.FC = () => {
   const clearCurrentWinners = useCallback(() => {
     setCurrentWinners([]);
     setLastWinners([]);
-    setDrawingState(prev => ({ ...prev, currentWinners: [], showConfetti: false }));
+    setDrawingState(prev => ({ 
+      ...prev, 
+      currentWinners: [], 
+      showConfetti: false,
+      showWinnerDisplay: false // Clear winner display flag
+    }));
   }, [setLastWinners, setDrawingState]);
 
   // Prize management functions
@@ -367,7 +407,7 @@ const AdminPage: React.FC = () => {
               isLocked={isLocked}
               prizes={prizes}
               selectedPrizeId={selectedPrizeId}
-              onRemoveParticipants={removeParticipants} // FIX: Add missing prop
+              onRemoveParticipants={removeParticipants}
             />
           </div>
 

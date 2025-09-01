@@ -416,10 +416,6 @@ const DisplayPage: React.FC = () => {
                               <span className="text-9xl font-bold text-slate-600 block uppercase">
                                 Ready
                               </span>
-                              <span className="text-3xl text-slate-500 block mt-1">
-                                Click Start to Begin
-                              </span>
-                      
                           </div>
                         ) : (
                           <motion.div
