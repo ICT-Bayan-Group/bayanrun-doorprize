@@ -34,7 +34,7 @@ const Header: React.FC<HeaderProps> = ({
           )}
           <div>
             <h1 className="text-2xl font-bold">BAYAN RUN 2025</h1>
-            <p className="text-red-600 font-semibold text-sm">Doorprize Random Name Picker</p>
+            <p className="text-red-600 font-semibold text-sm">Undian Doorprize</p>
           </div>
         </div>
         

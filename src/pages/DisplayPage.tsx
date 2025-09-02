@@ -56,7 +56,7 @@ const DisplayPage: React.FC = () => {
   });
   
   const [rollingNames, setRollingNames] = useState<string[]>([]);
-  const [animationSpeed, setAnimationSpeed] = useState(100);
+  const [animationSpeed, setAnimationSpeed] = useState(60);
   const [participantsSnapshot, setParticipantsSnapshot] = useState<Participant[]>([]);
   const [lastDrawStartTime, setLastDrawStartTime] = useState<number | null>(null);
   const [hasShownResults, setHasShownResults] = useState(false);
@@ -96,7 +96,7 @@ const DisplayPage: React.FC = () => {
         if (updatedState.isDrawing && (!localState.isDrawing || updatedState.drawStartTime !== lastDrawStartTime)) {
           setParticipantsSnapshot(updatedState.participants || []);
           setLastDrawStartTime(updatedState.drawStartTime || Date.now());
-          setAnimationSpeed(100);
+          setAnimationSpeed(60);
           setHasShownResults(false);
           
           // Start spinning only when shouldStartSpinning is true
@@ -152,7 +152,7 @@ const DisplayPage: React.FC = () => {
         if (updatedState.isDrawing && (!localState.isDrawing || updatedState.drawStartTime !== lastDrawStartTime)) {
           setParticipantsSnapshot(updatedState.participants || []);
           setLastDrawStartTime(updatedState.drawStartTime || Date.now());
-          setAnimationSpeed(100);
+          setAnimationSpeed(60);
           setHasShownResults(false);
           
           // Start spinning only when shouldStartSpinning is true
@@ -190,8 +190,8 @@ const DisplayPage: React.FC = () => {
       const drawCount = Math.min(localState.selectedPrizeQuota, participantsSnapshot.length);
       
       const slowDownInterval = setInterval(() => {
-        setAnimationSpeed(prev => Math.min(prev + 25, 350));
-      }, 1500);
+        setAnimationSpeed(prev => Math.min(prev + 10, 180));
+      }, 400);
   
       const interval = setInterval(() => {
         const newRollingNames = Array.from({ length: drawCount }, () => {
@@ -218,8 +218,8 @@ const DisplayPage: React.FC = () => {
   useEffect(() => {
     if (isSpinning && localState.isDrawing && participantsSnapshot.length > 0 && !hasShownResults && localState.selectedPrizeQuota === 1) {
       const slowDownInterval = setInterval(() => {
-        setAnimationSpeed(prev => Math.min(prev + 30, 400));
-      }, 2000);
+        setAnimationSpeed(prev => Math.min(prev + 20, 280));
+      }, 1200);
 
       const interval = setInterval(() => {
         const randomParticipant = participantsSnapshot[Math.floor(Math.random() * participantsSnapshot.length)];
@@ -290,7 +290,7 @@ const DisplayPage: React.FC = () => {
                 animate={{ x: 0, opacity: 1 }}
                 src={settings.eventLogo}
                 alt="Event Logo"
-                className="h-20 w-auto"
+                className="h-24 w-auto"
               />
             )}
 
@@ -300,13 +300,13 @@ const DisplayPage: React.FC = () => {
                 initial={{ x: 100, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className="inline-flex items-center gap-4 px-6 py-3 bg-white rounded-xl shadow-lg border"
+                className="inline-flex items-center gap-4 px-10 py-5 bg-white rounded-xl shadow-lg border"
               >
                 {localState.selectedPrizeImage && (
                   <img
                     src={localState.selectedPrizeImage}
                     alt={localState.selectedPrizeName}
-                    className="w-12 h-12 object-cover rounded-lg shadow-md"
+                    className="w-20 h-20 object-cover rounded-lg shadow-md"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
@@ -314,8 +314,8 @@ const DisplayPage: React.FC = () => {
                   />
                 )}
                 <div className="text-left">
-                  <p className="text-lg font-bold text-slate-800">{localState.selectedPrizeName}</p>
-                  <p className="text-sm text-slate-600">Prize for this draw</p>
+                  <p className="text-lg font-bold text-slate-800 uppercase">{localState.selectedPrizeName}</p>
+                  <p className="text-sm text-slate-600">Hadiah Undian</p>
                 </div>
               </motion.div>
             )}
@@ -334,54 +334,120 @@ const DisplayPage: React.FC = () => {
                   initial={{ y: 50, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.3 }}
-                  className="text-5xl font-bold text-emerald-600 mb-8 text-center"
+                  className="text-5xl font-bold text-emerald-600 mb-12 text-center"
                 >
                   WINNERS!
                 </motion.h2>
                 
-                {/* Horizontal Winner Cards */}
-                <div className="flex flex-wrap justify-center gap-4 max-w-full">
-                  {localState.currentWinners.map((winner, index) => (
-                    <motion.div
-                      key={winner.id}
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ 
-                        delay: 0.5 + (index * 0.1),
-                        type: "spring",
-                        stiffness: 100
-                      }}
-                      className="bg-white rounded-xl p-4 shadow-lg border border-slate-200 text-center flex-shrink-0"
-                      style={{ minWidth: '180px', maxWidth: '220px' }}
-                    >
-                      <div className="text-3xl mb-2">🏆</div>
-                      <p className="text-lg font-bold text-slate-800 mb-2">
-                        {winner.name}
-                      </p>
-                      
-                      {localState.selectedPrizeImage && (
-                        <img
-                          src={localState.selectedPrizeImage}
-                          alt={localState.selectedPrizeName}
-                          className="w-12 h-12 object-cover rounded-lg mx-auto opacity-70"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                          }}
-                        />
-                      )}
-                    </motion.div>
-                  ))}
-                </div>
-                
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 1.0 }}
-                  className="text-2xl text-center mt-8 text-slate-600"
-                >
-                  Congratulations!
-                </motion.p>
+                {/* Winner Cards - Slot Machine Styled Grid when > 1 */}
+                {localState.currentWinners.length > 1 ? (
+                  <div 
+                    className="gap-3 mx-auto"
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+                      maxWidth: '100%'
+                    }}
+                  >
+                    {localState.currentWinners.map((winner, index) => (
+                      <motion.div
+                        key={winner.id}
+                        initial={{ y: 50, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="relative"
+                      >
+                        <div className="bg-white rounded-2xl p-4 shadow-xl border-2 border-slate-200 relative overflow-hidden min-h-[260px]">
+                          {/* Prize Background */}
+                          {localState.selectedPrizeImage && (
+                            <div className="absolute inset-0 opacity-5">
+                              <img
+                                src={localState.selectedPrizeImage}
+                                alt="Prize"
+                                className="w-full h-full object-cover rounded-3xl"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          )}
+
+                          <div className="relative z-10 h-full flex flex-col">
+                            {/* Position Number */}
+                            <div className="text-center mb-3">
+                              <motion.div
+                                animate={{ 
+                                  scale: [1, 1.1, 1],
+                                  color: ["#10b981", "#059669", "#10b981"]
+                                }}
+                                transition={{ duration: 1.5, repeat: Infinity }}
+                                className="text-2xl font-black text-emerald-500"
+                              >
+                              </motion.div>
+                            </div>
+
+                            {/* Winner Name Display Area */}
+                            <div className="flex-1 flex items-center justify-center relative px-2">
+                              <span className="text-lg font-bold text-slate-800 text-center leading-snug">
+                                {winner.name}
+                              </span>
+                            </div>
+
+                            {/* Prize Image at Bottom */}
+                            {localState.selectedPrizeImage && (
+                              <div className="mt-4 text-center">
+                                <img
+                                  src={localState.selectedPrizeImage}
+                                  alt={localState.selectedPrizeName}
+                                  className="w-12 h-12 object-cover rounded-lg mx-auto opacity-60 shadow-md"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex justify-center">
+                    {localState.currentWinners.map((winner, index) => (
+                      <motion.div
+                        key={winner.id}
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ 
+                          delay: 0.5 + (index * 0.1),
+                          type: "spring",
+                          stiffness: 100
+                        }}
+                        className="bg-white rounded-2xl p-6 shadow-xl border-2 border-slate-200 text-center"
+                        style={{ minWidth: '260px' }}
+                      >
+                        <div className="text-4xl mb-3">🏆</div>
+                        <p className="text-2xl font-bold text-slate-800 mb-3">
+                          {winner.name}
+                        </p>
+                        {localState.selectedPrizeImage && (
+                          <img
+                            src={localState.selectedPrizeImage}
+                            alt={localState.selectedPrizeName}
+                            className="w-24 h-24 object-cover rounded-xl mx-auto opacity-70"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                            }}
+                          />
+                        )}
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+
               </motion.div>
             ) : localState.isDrawing && !hasShownResults ? (
               // Drawing Animation
@@ -450,7 +516,7 @@ const DisplayPage: React.FC = () => {
                           <img
                             src={localState.selectedPrizeImage}
                             alt={localState.selectedPrizeName}
-                            className="w-24 h-24 object-cover rounded-2xl mx-auto opacity-60 shadow-lg"
+                            className="w-30 h-30 object-cover rounded-2xl mx-auto opacity-60 shadow-lg"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               target.style.display = 'none';
@@ -490,14 +556,14 @@ const DisplayPage: React.FC = () => {
                         className="relative"
                       >
                         {/* Slot Machine */}
-                        <div className="bg-white rounded-2xl p-3 shadow-xl border-2 border-slate-200 relative overflow-hidden min-h-[300px]">
+                        <div className="bg-white rounded-xl p-3 shadow-xl border-2 border-slate-200 relative overflow-hidden min-h-[300px]">
                           {/* Prize Background */}
                           {localState.selectedPrizeImage && (
                             <div className="absolute inset-0 opacity-5">
                               <img
                                 src={localState.selectedPrizeImage}
                                 alt="Prize"
-                                className="w-full h-full object-cover rounded-2xl"
+                                className="w-full h-full object-cover rounded-3xl"
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement;
                                   target.style.display = 'none';
@@ -605,7 +671,6 @@ const DisplayPage: React.FC = () => {
                   >
                     {!isSpinning && (
                       <p className="text-2xl text-slate-600 font-semibold">
-                        Waiting for draw to start...
                       </p>
                     )}
                   </motion.div>

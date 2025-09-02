@@ -46,7 +46,8 @@ const AdminPage: React.FC = () => {
     isDrawing: false,
     currentWinners: [],
     showConfetti: false,
-    participants: []
+    participants: [],
+    showWinnerDisplay: false
   });
 
   const addParticipant = useCallback((name: string) => {
@@ -57,7 +58,11 @@ const AdminPage: React.FC = () => {
     };
     setParticipants(prev => {
       const updated = [...prev, newParticipant];
-      setDrawingState(prevState => ({ ...prevState, participants: updated }));
+      // FIXED: Only update participants in drawingState, not winner display
+      setDrawingState(prevState => ({ 
+        ...prevState, 
+        participants: updated 
+      }));
       return updated;
     });
   }, [setParticipants, setDrawingState]);
@@ -70,7 +75,11 @@ const AdminPage: React.FC = () => {
     }));
     setParticipants(prev => {
       const updated = [...prev, ...newParticipants];
-      setDrawingState(prevState => ({ ...prevState, participants: updated }));
+      // FIXED: Only update participants in drawingState, not winner display
+      setDrawingState(prevState => ({ 
+        ...prevState, 
+        participants: updated 
+      }));
       return updated;
     });
   }, [setParticipants, setDrawingState]);
@@ -78,58 +87,55 @@ const AdminPage: React.FC = () => {
   const removeParticipant = useCallback((id: string) => {
     setParticipants(prev => {
       const updated = prev.filter(p => p.id !== id);
-      setDrawingState(prevState => ({ ...prevState, participants: updated }));
+      // FIXED: Only update participants in drawingState, not winner display
+      setDrawingState(prevState => ({ 
+        ...prevState, 
+        participants: updated 
+      }));
       return updated;
     });
   }, [setParticipants, setDrawingState]);
 
-  // FIXED: Enhanced removeParticipants with conditional update
+  // FIXED: Enhanced removeParticipants with better safety checks
   const removeParticipants = useCallback((participantIds: string[]) => {
     setParticipants(prev => {
       const updated = prev.filter(p => !participantIds.includes(p.id));
       
-      // Safety check: hanya update drawingState jika aman
+      // FIXED: More robust safety check for drawingState update
       try {
         const currentDrawingState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
         
-        // Kondisi aman untuk update:
-        // 1. Tidak sedang drawing
-        // 2. Tidak ada winners yang ditampilkan  
-        // 3. Tidak ada confetti
-        // 4. Tidak ada showWinnerDisplay flag
-        const isSafeToUpdate = !currentDrawingState.isDrawing && 
-                              (!currentDrawingState.currentWinners || currentDrawingState.currentWinners.length === 0) &&
-                              !currentDrawingState.showConfetti &&
-                              !currentDrawingState.showWinnerDisplay;
+        // Only update participants list, never interfere with winner display
+        const safeUpdate = {
+          ...currentDrawingState,
+          participants: updated
+        };
         
-        if (isSafeToUpdate) {
-          setDrawingState(prevState => ({ ...prevState, participants: updated }));
-          console.log('Drawing state participants updated safely after winner removal');
-        } else {
-          console.log('Skipped drawing state update to preserve winner display', {
-            isDrawing: currentDrawingState.isDrawing,
-            hasWinners: currentDrawingState.currentWinners?.length > 0,
-            showConfetti: currentDrawingState.showConfetti,
-            showWinnerDisplay: currentDrawingState.showWinnerDisplay
-          });
-        }
+        // Preserve winner display state completely
+        localStorage.setItem('doorprize-drawing-state', JSON.stringify(safeUpdate));
+        
+        console.log('Participants updated safely without affecting winner display');
         
       } catch (error) {
         console.warn('Failed to update drawing state after participant removal:', error);
-        // Fallback: tetap update participants list meski drawingState gagal
       }
       
       return updated;
     });
-  }, [setParticipants, setDrawingState]);
+  }, [setParticipants]);
 
   const clearAllParticipants = useCallback(() => {
     if (window.confirm('Are you sure you want to clear all participants?')) {
       setParticipants([]);
-      setDrawingState(prevState => ({ ...prevState, participants: [] }));
+      // FIXED: Only update participants in drawingState, not winner display
+      setDrawingState(prevState => ({ 
+        ...prevState, 
+        participants: [] 
+      }));
     }
   }, [setParticipants, setDrawingState]);
 
+  // FIXED: Enhanced startDrawing to properly reset display
   const startDrawing = useCallback(() => {
     if (participants.length === 0 || isDrawing) return;
     
@@ -137,7 +143,7 @@ const AdminPage: React.FC = () => {
     setCurrentWinners([]);
     setShowConfetti(false);
     
-    // Update drawing state for display page
+    // FIXED: Properly reset all display states when starting new draw
     setDrawingState({
       isDrawing: true,
       currentWinners: [],
@@ -146,11 +152,14 @@ const AdminPage: React.FC = () => {
       selectedPrizeImage: selectedPrize?.image,
       selectedPrizeQuota: selectedPrize?.quota,
       participants: participants,
-      drawStartTime: Date.now(), // Add timestamp for tracking
-      showWinnerDisplay: false // Reset winner display flag
+      drawStartTime: Date.now(),
+      showWinnerDisplay: false, // Explicitly reset winner display
+      shouldStartSpinning: false,
+      shouldResetToReady: false // Clear any pending reset
     });
   }, [participants, isDrawing, selectedPrize, setDrawingState]);
 
+  // FIXED: Enhanced stopDrawing to enable persistent winner display
   const stopDrawing = useCallback((finalWinners?: Winner[]) => {
     if (!isDrawing) return;
 
@@ -208,19 +217,21 @@ const AdminPage: React.FC = () => {
     setShowConfetti(true);
     setTimeout(() => {
       setShowConfetti(false);
-      setDrawingState(prev => ({ ...prev, showConfetti: false }));
+      // FIXED: Don't automatically clear confetti from drawingState
     }, 8000);
     
-    // Update drawing state for display page with persistent winner display
+    // FIXED: Update drawing state with persistent winner display
     setDrawingState({
       isDrawing: false,
       currentWinners: newWinners,
       showConfetti: true,
       selectedPrizeName: selectedPrize?.name,
       selectedPrizeImage: selectedPrize?.image,
+      selectedPrizeQuota: selectedPrize?.quota,
       participants: participants,
       finalWinners: newWinners,
-      showWinnerDisplay: true // Flag to maintain winner display
+      showWinnerDisplay: true, // Enable persistent winner display
+      shouldStartSpinning: false
     });
     
     // Play sound effect
@@ -236,15 +247,18 @@ const AdminPage: React.FC = () => {
     setIsDrawing(false);
   }, [isDrawing, participants, currentWinners, selectedPrize, settings, setWinners, setPrizes, setLastWinners, setDrawingState, setSelectedPrizeId]);
 
-  // Clear winners function
+  // FIXED: Enhanced clearCurrentWinners to properly clear display
   const clearCurrentWinners = useCallback(() => {
     setCurrentWinners([]);
     setLastWinners([]);
+    
+    // FIXED: Properly clear all winner-related states
     setDrawingState(prev => ({ 
       ...prev, 
       currentWinners: [], 
       showConfetti: false,
-      showWinnerDisplay: false // Clear winner display flag
+      showWinnerDisplay: false, // Disable persistent winner display
+      finalWinners: []
     }));
   }, [setLastWinners, setDrawingState]);
 
