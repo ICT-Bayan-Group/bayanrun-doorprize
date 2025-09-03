@@ -368,14 +368,14 @@ const AdminPage: React.FC = () => {
         <div className="mb-6 p-4 bg-blue-100 border border-blue-300 rounded-lg">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-blue-800">Display Page</h3>
-              <p className="text-blue-600">Open this page on projector/large screen for audience</p>
+              <h3 className="text-lg font-semibold text-blue-800">Halaman Display</h3>
+              <p className="text-blue-600">Buka Halaman ini untuk menampilkan ke para pengunjung</p>
             </div>
             <button
               onClick={openDisplayPage}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
             >
-              Open Display Page
+              Display
             </button>
           </div>
         </div>
@@ -451,7 +451,7 @@ const AdminPage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg"
         >
-          🔒 Controls Locked
+          🔒 Terkunci
         </motion.div>
       )}
     </div>

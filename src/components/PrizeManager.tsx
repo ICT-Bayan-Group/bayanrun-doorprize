@@ -121,7 +121,6 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            Add Prize
           </button>
         )}
       </div>
@@ -137,34 +136,34 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Prize Name
+                  Nama Hadiah
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                  placeholder="e.g., Grand Prize, Smartphone, Gift Voucher"
+                  placeholder="e.g., Iphone, Voucher Hotel, SmartWatch"
                   required
                 />
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
+                  Deskripsi
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                  placeholder="Prize description..."
+                  placeholder="Keterangan Hadiah..."
                   rows={2}
                 />
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Prize Image
+                  Gambar Hadiah
                 </label>
                 <input
                   type="file"
@@ -173,7 +172,7 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Supported formats: JPG, PNG, WebP (max 2MB)
+                 format: JPG, PNG, WebP (max 2MB)
                 </p>
                 {imagePreview && (
                   <div className="mt-3">
@@ -188,7 +187,7 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Quota (Number of Winners)
+                  Kuota (Kuota Pemenang)
                 </label>
                 <input
                   type="number"
@@ -205,14 +204,14 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
                   type="submit"
                   className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                 >
-                  {editingPrize ? 'Update Prize' : 'Add Prize'}
+                  {editingPrize ? 'Update Prize' : 'Tambah'}
                 </button>
                 <button
                   type="button"
                   onClick={handleCancel}
                   className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
                 >
-                  Cancel
+                  Kembali
                 </button>
               </div>
             </form>
@@ -228,7 +227,7 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
               <h3 className="font-semibold text-green-800">Selected Prize for Next Draw</h3>
               <p className="text-green-700">{selectedPrize.name}</p>
               <p className="text-sm text-green-600">
-                Remaining quota: {selectedPrize.remainingQuota}/{selectedPrize.quota}
+                Kuota Tersisa: {selectedPrize.remainingQuota}/{selectedPrize.quota}
               </p>
             </div>
             {!isLocked && (
@@ -282,7 +281,7 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
                         ? 'bg-green-100 text-green-700' 
                         : 'bg-red-100 text-red-700'
                     }`}>
-                      {prize.remainingQuota}/{prize.quota} remaining
+                      {prize.remainingQuota}/{prize.quota} Tersisa
                     </span>
                   </div>
                 </div>
