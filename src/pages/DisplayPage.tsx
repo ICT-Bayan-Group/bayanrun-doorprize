@@ -328,79 +328,44 @@ const DisplayPage: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="w-full max-w-6xl"
+                className="w-full"
               >
                 <motion.h2
                   initial={{ y: 50, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.3 }}
-                  className="text-5xl font-bold text-emerald-600 mb-12 text-center"
+                  className="text-6xl font-bold text-emerald-600 mb-12 text-center"
                 >
                   WINNERS!
                 </motion.h2>
                 
-                {/* Winner Cards - Slot Machine Styled Grid when > 1 */}
+                {/* Winner Cards - Full width layout when > 1 */}
                 {localState.currentWinners.length > 1 ? (
-                  <div 
-                    className="gap-3 mx-auto"
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
-                      maxWidth: '100%'
-                    }}
-                  >
-                    {localState.currentWinners.map((winner, index) => (
-                      <motion.div
-                        key={winner.id}
-                        initial={{ y: 50, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="relative"
-                      >
-                        <div className="bg-white rounded-2xl p-4 shadow-xl border-2 border-slate-200 relative overflow-hidden min-h-[260px]">
-                          {/* Prize Background */}
-                          {localState.selectedPrizeImage && (
-                            <div className="absolute inset-0 opacity-5">
-                              <img
-                                src={localState.selectedPrizeImage}
-                                alt="Prize"
-                                className="w-full h-full object-cover rounded-3xl"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.style.display = 'none';
-                                }}
-                              />
-                            </div>
-                          )}
-
-                          <div className="relative z-10 h-full flex flex-col">
-                            {/* Position Number */}
-                            <div className="text-center mb-3">
-                              <motion.div
-                                animate={{ 
-                                  scale: [1, 1.1, 1],
-                                  color: ["#10b981", "#059669", "#10b981"]
-                                }}
-                                transition={{ duration: 1.5, repeat: Infinity }}
-                                className="text-2xl font-black text-emerald-500"
-                              >
-                              </motion.div>
-                            </div>
-
-                            {/* Winner Name Display Area */}
-                            <div className="flex-1 flex items-center justify-center relative px-2">
-                              <span className="text-lg font-bold text-slate-800 text-center leading-snug">
-                                {winner.name}
-                              </span>
-                            </div>
-
-                            {/* Prize Image at Bottom */}
+                  <div className="px-4">
+                    <div 
+                      className="gap-3"
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: `repeat(${Math.min(localState.currentWinners.length, 10)}, minmax(0, 1fr))`,
+                        width: '100%'
+                      }}
+                    >
+                      {localState.currentWinners.map((winner, index) => (
+                        <motion.div
+                          key={winner.id}
+                          initial={{ y: 50, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="relative"
+                        >
+                          <div className="bg-white rounded-2xl p-4 shadow-xl border-2 border-slate-200 relative overflow-hidden min-h-[260px]">
+                            {/* Prize Background */}
                             {localState.selectedPrizeImage && (
-                              <div className="mt-4 text-center">
+                              <div className="absolute inset-0 opacity-5">
                                 <img
                                   src={localState.selectedPrizeImage}
-                                  alt={localState.selectedPrizeName}
-                                  className="w-12 h-12 object-cover rounded-lg mx-auto opacity-60 shadow-md"
+                                  alt="Prize"
+                                  className="w-full h-full object-cover rounded-3xl"
                                   onError={(e) => {
                                     const target = e.target as HTMLImageElement;
                                     target.style.display = 'none';
@@ -408,10 +373,47 @@ const DisplayPage: React.FC = () => {
                                 />
                               </div>
                             )}
+
+                            <div className="relative z-10 h-full flex flex-col">
+                              {/* Position Number */}
+                              <div className="text-center mb-3">
+                                <motion.div
+                                  animate={{ 
+                                    scale: [1, 1.1, 1],
+                                    color: ["#10b981", "#059669", "#10b981"]
+                                  }}
+                                  transition={{ duration: 1.5, repeat: Infinity }}
+                                  className="text-2xl font-black text-emerald-500"
+                                >
+                                </motion.div>
+                              </div>
+
+                              {/* Winner Name Display Area */}
+                              <div className="flex-1 flex items-center justify-center relative px-2">
+                                <span className="text-lg font-bold text-slate-800 text-center leading-snug">
+                                  {winner.name}
+                                </span>
+                              </div>
+
+                              {/* Prize Image at Bottom */}
+                              {localState.selectedPrizeImage && (
+                                <div className="mt-4 text-center">
+                                  <img
+                                    src={localState.selectedPrizeImage}
+                                    alt={localState.selectedPrizeName}
+                                    className="w-12 h-12 object-cover rounded-lg mx-auto opacity-60 shadow-md"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.display = 'none';
+                                    }}
+                                  />
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </motion.div>
-                    ))}
+                        </motion.div>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="flex justify-center">
