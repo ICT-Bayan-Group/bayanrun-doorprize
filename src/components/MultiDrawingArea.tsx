@@ -285,7 +285,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
           <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200">
             <Clock className="w-4 h-4 text-blue-600" />
             <span className="text-blue-600 font-medium text-sm">
-              Drawing: {formatTime(drawingDuration)}
+              Undian: {formatTime(drawingDuration)}
             </span>
           </div>
         )}
@@ -315,17 +315,17 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
-                  Selected Prize
+                  Hadiah Terpilih
                 </span>
                 <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
-                  Live Updated
+                  Live Update
                 </span>
               </div>
               <h3 className="font-semibold text-purple-800 text-lg">{selectedPrize.name}</h3>
               <p className="text-purple-600 text-sm flex items-center gap-2">
                 <Target className="w-4 h-4" />
-                Drawing {drawCount} winner{drawCount !== 1 ? 's' : ''} 
-                ({selectedPrize.remainingQuota} remaining)
+                Draw {drawCount} pemenang{drawCount !== 1 ? 's' : ''} 
+                ({selectedPrize.remainingQuota} tersisa)
               </p>
             </div>
           </div>
@@ -335,8 +335,8 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-orange-600" />
             <div>
-              <p className="font-medium text-orange-800">No Prize Selected</p>
-              <p className="text-orange-600 text-sm">Please select a prize from the prize list to start drawing</p>
+              <p className="font-medium text-orange-800">Hadiah Tidak Tertampil</p>
+              <p className="text-orange-600 text-sm">Silakan pilih hadiah dari daftar hadiah untuk memulai pengundian</p>
             </div>
           </div>
         </div>
@@ -347,18 +347,18 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
           <div className="flex items-center gap-2 mb-1">
             <Users className="w-4 h-4 text-blue-600" />
-            <span className="text-blue-600 font-medium text-sm">Available</span>
+            <span className="text-blue-600 font-medium text-sm">Peserta</span>
           </div>
           <p className="text-2xl font-bold text-blue-800">{availableParticipants.length}</p>
           <p className="text-xs text-blue-600">
-            {participants.length - availableParticipants.length} already won
+            {participants.length - availableParticipants.length} akan menang
           </p>
         </div>
         
         <div className="p-3 bg-green-50 rounded-lg border border-green-100">
           <div className="flex items-center gap-2 mb-1">
             <Trophy className="w-4 h-4 text-green-600" />
-            <span className="text-green-600 font-medium text-sm">To Draw</span>
+            <span className="text-green-600 font-medium text-sm">Kuota</span>
           </div>
           <p className="text-2xl font-bold text-green-800">{drawCount}</p>
         </div>
@@ -370,9 +370,9 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-red-600" />
             <div>
-              <p className="font-medium text-red-800">All Participants Have Won</p>
+              <p className="font-medium text-red-800">Tidak ada Partisipan</p>
               <p className="text-red-600 text-sm">
-                No participants available for drawing. All {participants.length} participants have already won prizes.
+              Tidak ada peserta yang tersedia untuk pengundian. pada dapet undian semua kayaknya WKWKW
               </p>
             </div>
           </div>

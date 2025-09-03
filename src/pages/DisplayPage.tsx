@@ -336,7 +336,7 @@ const DisplayPage: React.FC = () => {
                   transition={{ delay: 0.3 }}
                   className="text-6xl font-bold text-emerald-600 mb-12 text-center"
                 >
-                  WINNERS!
+                 PEMENANG DOORPRIZE
                 </motion.h2>
                 
                 {/* Winner Cards - Full width layout when > 1 */}
