@@ -21,7 +21,11 @@ const defaultSettings: AppSettings = {
   multiDrawCount: 10,
 };
 
-const AdminPage: React.FC = () => {
+interface AdminPageProps {
+  onLogout?: () => void;
+}
+
+const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
   const [participants, setParticipants] = useLocalStorage<Participant[]>('doorprize-participants', []);
   const [winners, setWinners] = useLocalStorage<Winner[]>('doorprize-winners', []);
   const [prizes, setPrizes] = useLocalStorage<Prize[]>('doorprize-prizes', []);
@@ -361,6 +365,7 @@ const AdminPage: React.FC = () => {
         onToggleFullscreen={openDisplayPage}
         onToggleLock={() => setIsLocked(prev => !prev)}
         onOpenSettings={() => setShowSettings(true)}
+        onLogout = {onLogout}
       />
 
       <main className="container mx-auto px-4 py-8">

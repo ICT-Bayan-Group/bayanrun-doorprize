@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Settings, Monitor, Lock, Unlock } from 'lucide-react';
+import { Trophy, Settings, Monitor, Lock, Unlock, LogOut } from 'lucide-react';
 
 interface HeaderProps {
   logo?: string;
@@ -9,6 +9,7 @@ interface HeaderProps {
   onToggleFullscreen: () => void;
   onToggleLock: () => void;
   onOpenSettings: () => void;
+  onLogout?: () => void; // Tambahkan prop logout
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -17,8 +18,15 @@ const Header: React.FC<HeaderProps> = ({
   isLocked,
   onToggleFullscreen,
   onToggleLock,
-  onOpenSettings
+  onOpenSettings,
+  onLogout // Tambahkan prop logout
 }) => {
+  const handleLogout = () => {
+    if (window.confirm('Apakah Anda yakin ingin keluar?')) {
+      onLogout?.();
+    }
+  };
+
   return (
     <motion.header
       initial={{ y: -20, opacity: 0 }}
@@ -43,7 +51,7 @@ const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onToggleLock}
               className={`p-2 rounded-lg transition-colors ${
-                isLocked ? 'bg-red-500 hover:bg-red-600' : 'bg-white hover:bg-white'
+                isLocked ? 'bg-red-500 hover:bg-red-600' : 'bg-white hover:bg-gray-100'
               }`}
               title={isLocked ? 'Unlock Controls' : 'Lock Controls'}
             >
@@ -52,7 +60,7 @@ const Header: React.FC<HeaderProps> = ({
             
             <button
               onClick={onToggleFullscreen}
-              className="p-2 rounded-lg bg-white hover:bg-white transition-colors"
+              className="p-2 rounded-lg bg-white hover:bg-gray-100 transition-colors"
               title="Open Display Page"
             >
               <Monitor className="w-4 h-4" />
@@ -60,11 +68,25 @@ const Header: React.FC<HeaderProps> = ({
             
             <button
               onClick={onOpenSettings}
-              className="p-2 rounded-lg bg-white hover:bg-white transition-colors"
+              className="p-2 rounded-lg bg-white hover:bg-gray-100 transition-colors"
+              disabled={isLocked}
               title="Settings"
             >
               <Settings className="w-4 h-4" />
             </button>
+
+            {/* Logout Button */}
+            {onLogout && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleLogout}
+                className="p-2 rounded-lg bg-red-100 hover:bg-red-200 transition-colors border border-red-200"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4 text-red-600" />
+              </motion.button>
+            )}
           </div>
         )}
       </div>
