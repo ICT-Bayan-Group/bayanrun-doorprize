@@ -56,12 +56,14 @@ const DisplayPage: React.FC = () => {
   });
   
   const [rollingNames, setRollingNames] = useState<string[]>([]);
-  const [animationSpeed, setAnimationSpeed] = useState(60);
   const [participantsSnapshot, setParticipantsSnapshot] = useState<Participant[]>([]);
   const [lastDrawStartTime, setLastDrawStartTime] = useState<number | null>(null);
   const [hasShownResults, setHasShownResults] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [currentSingleName, setCurrentSingleName] = useState<string>('');
+  
+  // Stable animation speed - no slowdown
+  const STABLE_ANIMATION_SPEED = 100; // milliseconds
   
 
   // Listen for changes in localStorage
@@ -96,7 +98,6 @@ const DisplayPage: React.FC = () => {
         if (updatedState.isDrawing && (!localState.isDrawing || updatedState.drawStartTime !== lastDrawStartTime)) {
           setParticipantsSnapshot(updatedState.participants || []);
           setLastDrawStartTime(updatedState.drawStartTime || Date.now());
-          setAnimationSpeed(60);
           setHasShownResults(false);
           
           // Start spinning only when shouldStartSpinning is true
@@ -152,7 +153,6 @@ const DisplayPage: React.FC = () => {
         if (updatedState.isDrawing && (!localState.isDrawing || updatedState.drawStartTime !== lastDrawStartTime)) {
           setParticipantsSnapshot(updatedState.participants || []);
           setLastDrawStartTime(updatedState.drawStartTime || Date.now());
-          setAnimationSpeed(60);
           setHasShownResults(false);
           
           // Start spinning only when shouldStartSpinning is true
@@ -184,15 +184,11 @@ const DisplayPage: React.FC = () => {
     };
   }, [localState, lastDrawStartTime, isSpinning]);
 
-  // Animation effect for multi-slot machines
+  // Animation effect for multi-slot machines - STABLE SPEED
   useEffect(() => {
     if (isSpinning && localState.isDrawing && participantsSnapshot.length > 0 && !hasShownResults && localState.selectedPrizeQuota > 1) {
       const drawCount = Math.min(localState.selectedPrizeQuota, participantsSnapshot.length);
       
-      const slowDownInterval = setInterval(() => {
-        setAnimationSpeed(prev => Math.min(prev + 10, 180));
-      }, 400);
-  
       const interval = setInterval(() => {
         const newRollingNames = Array.from({ length: drawCount }, () => {
           const shuffled = [...participantsSnapshot]
@@ -203,37 +199,31 @@ const DisplayPage: React.FC = () => {
           return shuffled[Math.floor(Math.random() * shuffled.length)] || '';
         });
         setRollingNames(newRollingNames);
-      }, animationSpeed);
+      }, STABLE_ANIMATION_SPEED);
   
       return () => {
         clearInterval(interval);
-        clearInterval(slowDownInterval);
       };
     } else {
       setRollingNames([]);
     }
-  }, [isSpinning, localState.isDrawing, participantsSnapshot, animationSpeed, hasShownResults, localState.selectedPrizeQuota]);
+  }, [isSpinning, localState.isDrawing, participantsSnapshot, hasShownResults, localState.selectedPrizeQuota]);
 
-  // Animation effect for single name picker
+  // Animation effect for single name picker - STABLE SPEED
   useEffect(() => {
     if (isSpinning && localState.isDrawing && participantsSnapshot.length > 0 && !hasShownResults && localState.selectedPrizeQuota === 1) {
-      const slowDownInterval = setInterval(() => {
-        setAnimationSpeed(prev => Math.min(prev + 20, 280));
-      }, 1200);
-
       const interval = setInterval(() => {
         const randomParticipant = participantsSnapshot[Math.floor(Math.random() * participantsSnapshot.length)];
         setCurrentSingleName(randomParticipant?.name || '');
-      }, animationSpeed);
+      }, STABLE_ANIMATION_SPEED);
 
       return () => {
         clearInterval(interval);
-        clearInterval(slowDownInterval);
       };
     } else {
       setCurrentSingleName('');
     }
-  }, [isSpinning, localState.isDrawing, participantsSnapshot, animationSpeed, hasShownResults, localState.selectedPrizeQuota]);
+  }, [isSpinning, localState.isDrawing, participantsSnapshot, hasShownResults, localState.selectedPrizeQuota]);
 
   const prizeQuota = localState.selectedPrizeQuota || 1;
   const drawCount = Math.min(prizeQuota, participantsSnapshot.length || localState.participants?.length || 0);
@@ -499,7 +489,7 @@ const DisplayPage: React.FC = () => {
                               rotateX: 0
                             }}
                             transition={{ 
-                              duration: animationSpeed / 1000,
+                              duration: STABLE_ANIMATION_SPEED / 1000,
                               ease: "easeInOut"
                             }}
                             className="text-center"
@@ -630,7 +620,7 @@ const DisplayPage: React.FC = () => {
                                         filter: "blur(2px)"
                                       }}
                                       transition={{ 
-                                        duration: animationSpeed / 1000,
+                                        duration: STABLE_ANIMATION_SPEED / 1000,
                                         ease: "easeInOut"
                                       }}
                                       className="text-center px-1"
