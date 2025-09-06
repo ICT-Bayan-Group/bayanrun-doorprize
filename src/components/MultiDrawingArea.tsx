@@ -435,7 +435,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
               
               {winnerProcessing.status === 'success' && (
                 <p className="text-green-600 text-sm">
-                  Winners removed from participant list automatically
+                 Pemenang dihapus dari daftar peserta secara otomatis
                 </p>
               )}
               
@@ -464,7 +464,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
             >
               <Play className="w-5 h-5 mr-2" />
               {!selectedPrize 
-                ? 'Select Prize First' 
+                ? 'Pilih Hadiah' 
                 : availableParticipants.length === 0 
                   ? 'No Available Participants' 
                   : `Prepare Draw (${drawCount} Winners)`
@@ -478,7 +478,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                   className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex-1 justify-center"
                 >
                   <Play className="w-5 h-5 mr-2" />
-                  Start Spinning!
+                  Mulai Spinning!
                 </button>
               ) : (
                 <button
@@ -486,7 +486,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                   className="flex items-center px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex-1 justify-center"
                 >
                   <Square className="w-5 h-5 mr-2" />
-                  Stop Drawing & Show Winners
+                  Stop Spinning
                 </button>
               )}
             </>
@@ -496,7 +496,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
             <button
               onClick={handleDeleteClick}
               className="flex items-center px-4 py-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg font-semibold transition-all duration-200 hover:shadow-md"
-              title="Clear current winners"
+              title="Bersihkan Data Pemenang"
             >
               <Trash2 className="w-5 h-5" />
             </button>
@@ -519,8 +519,8 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                 />
                 <span className="text-blue-600 font-medium">
                   {shouldStartSpinning 
-                    ? 'Drawing in progress... Click "Stop Drawing" when ready!'
-                    : 'Draw prepared. Click "Start Spinning" to begin animation!'
+                    ? 'Sedang Spinning... Klik "Stop Spinning" jika sudah siap!'
+                    : 'Undian sudah disiapkan. Klik "Mulai Spinning" untuk memulai undian!'
                   }
                 </span>
               </div>
@@ -543,12 +543,12 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
           >
             <div className="flex items-center mb-4">
               <AlertTriangle className="w-6 h-6 text-red-500 mr-2" />
-              <h3 className="text-lg font-bold text-gray-800">Confirm Clear Winners</h3>
+              <h3 className="text-lg font-bold text-gray-800">Hapus Data Undian</h3>
             </div>
 
             <p className="text-gray-600 mb-6">
-              Are you sure you want to clear all current winners? This will remove {currentWinners.length} winner{currentWinners.length !== 1 ? 's' : ''} from the display. 
-              <strong className="text-red-600"> Note: This will NOT restore winners back to the participant list.</strong>
+              Apakah Anda yakin ingin menghapus semua pemenang saat ini? Ini akan menghapus {currentWinners.length} winner{currentWinners.length !== 1 ? 's' : ''} dari tampilan.
+              <strong className="text-red-600"> Catatan: Ini TIDAK akan mengembalikan pemenang ke daftar peserta.</strong>
             </p>
 
             <div className="flex space-x-3 justify-end">
@@ -556,13 +556,13 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                 onClick={handleCancelDelete}
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
               >
-                Cancel
+                Batal
               </button>
               <button
                 onClick={handleConfirmDelete}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
               >
-                Clear Winners
+                Hapus 
               </button>
             </div>
           </motion.div>
@@ -575,7 +575,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-green-600 flex items-center gap-2">
               <Trophy className="w-5 h-5" />
-              Current Winners ({currentWinners.length})
+              Undian Saat ini ({currentWinners.length})
             </h3>
             {selectedPrize && (
               <span className="px-3 py-1 bg-purple-100 text-purple-700 text-sm rounded-full font-medium">
@@ -601,7 +601,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                     <div>
                       <p className="font-semibold text-gray-800">{winner.name}</p>
                       <p className="text-xs text-gray-500">
-                        Won at {new Date(winner.wonAt).toLocaleTimeString()}
+                         {new Date(winner.wonAt).toLocaleTimeString()}
                       </p>
                     </div>
                   </div>
