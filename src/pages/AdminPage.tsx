@@ -2,7 +2,8 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import Confetti from 'react-confetti';
 import { Participant, Winner, AppSettings, Prize } from '../types';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useFirestore } from '../hooks/useFirestore';
+import { useFirebaseDrawingState } from '../hooks/useFirebaseDrawingState';
 import { exportToCsv } from '../utils/fileHandling';
 
 import Header from '../components/Header';
@@ -26,18 +27,28 @@ interface AdminPageProps {
 }
 
 const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
-  const [participants, setParticipants] = useLocalStorage<Participant[]>('doorprize-participants', []);
-  const [winners, setWinners] = useLocalStorage<Winner[]>('doorprize-winners', []);
-  const [prizes, setPrizes] = useLocalStorage<Prize[]>('doorprize-prizes', []);
-  const [settings, setSettings] = useLocalStorage<AppSettings>('doorprize-settings', defaultSettings);
-  const [lastWinners, setLastWinners] = useLocalStorage<Winner[]>('doorprize-last-winners', []);
+  // Firebase hooks
+  const participantsHook = useFirestore<Participant>('participants', 'addedAt');
+  const winnersHook = useFirestore<Winner>('winners', 'wonAt');
+  const prizesHook = useFirestore<Prize>('prizes', 'createdAt');
+  const settingsHook = useFirestore<AppSettings & { id: string }>('settings');
+  const { drawingState, updateDrawingState } = useFirebaseDrawingState();
   
-  const [currentWinners, setCurrentWinners] = useState<Winner[]>(lastWinners);
+  // Extract data from hooks
+  const participants = participantsHook.data;
+  const winners = winnersHook.data;
+  const prizes = prizesHook.data;
+  const settings = settingsHook.data[0] || defaultSettings;
+  
+  const [currentWinners, setCurrentWinners] = useState<Winner[]>(drawingState.currentWinners || []);
   const [selectedPrizeId, setSelectedPrizeId] = useState<string | null>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(drawingState.isDrawing || false);
   const [isLocked, setIsLocked] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(drawingState.showConfetti || false);
+
+  // Loading state
+  const isLoading = participantsHook.loading || winnersHook.loading || prizesHook.loading || settingsHook.loading;
 
   // Real-time prize synchronization
   const selectedPrize = useMemo(() => {
@@ -45,127 +56,73 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     return prizes.find(prize => prize.id === selectedPrizeId) || null;
   }, [prizes, selectedPrizeId]);
 
-  // Sync drawing state to localStorage for display page
-  const [, setDrawingState] = useLocalStorage('doorprize-drawing-state', {
-    isDrawing: false,
-    currentWinners: [],
-    showConfetti: false,
-    participants: [],
-    showWinnerDisplay: false
-  });
+  // Sync local state with Firebase drawing state
+  React.useEffect(() => {
+    setCurrentWinners(drawingState.currentWinners || []);
+    setIsDrawing(drawingState.isDrawing || false);
+    setShowConfetti(drawingState.showConfetti || false);
+  }, [drawingState]);
 
   const addParticipant = useCallback((name: string) => {
-    const newParticipant: Participant = {
-      id: Date.now().toString(),
+    const newParticipant: Omit<Participant, 'id'> = {
       name,
       addedAt: new Date(),
     };
-    setParticipants(prev => {
-      const updated = [...prev, newParticipant];
-      // FIXED: Only update participants in drawingState, not winner display
-      setDrawingState(prevState => ({ 
-        ...prevState, 
-        participants: updated 
-      }));
-      return updated;
-    });
-  }, [setParticipants, setDrawingState]);
+    participantsHook.add(newParticipant);
+  }, [participantsHook]);
 
   const addMultipleParticipants = useCallback((names: string[]) => {
-    const newParticipants: Participant[] = names.map(name => ({
-      id: `${Date.now()}-${Math.random()}`,
+    const promises = names.map(name => participantsHook.add({
       name,
       addedAt: new Date(),
     }));
-    setParticipants(prev => {
-      const updated = [...prev, ...newParticipants];
-      // FIXED: Only update participants in drawingState, not winner display
-      setDrawingState(prevState => ({ 
-        ...prevState, 
-        participants: updated 
-      }));
-      return updated;
-    });
-  }, [setParticipants, setDrawingState]);
+    Promise.all(promises).catch(console.error);
+  }, [participantsHook]);
 
   const removeParticipant = useCallback((id: string) => {
-    setParticipants(prev => {
-      const updated = prev.filter(p => p.id !== id);
-      // FIXED: Only update participants in drawingState, not winner display
-      setDrawingState(prevState => ({ 
-        ...prevState, 
-        participants: updated 
-      }));
-      return updated;
-    });
-  }, [setParticipants, setDrawingState]);
+    participantsHook.remove(id);
+  }, [participantsHook]);
 
-  // FIXED: Enhanced removeParticipants with better safety checks
   const removeParticipants = useCallback((participantIds: string[]) => {
-    setParticipants(prev => {
-      const updated = prev.filter(p => !participantIds.includes(p.id));
-      
-      // FIXED: More robust safety check for drawingState update
-      try {
-        const currentDrawingState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
-        
-        // Only update participants list, never interfere with winner display
-        const safeUpdate = {
-          ...currentDrawingState,
-          participants: updated
-        };
-        
-        // Preserve winner display state completely
-        localStorage.setItem('doorprize-drawing-state', JSON.stringify(safeUpdate));
-        
-        console.log('Participants updated safely without affecting winner display');
-        
-      } catch (error) {
-        console.warn('Failed to update drawing state after participant removal:', error);
-      }
-      
-      return updated;
-    });
-  }, [setParticipants]);
+    participantsHook.removeMultiple(participantIds);
+  }, [participantsHook]);
 
   const clearAllParticipants = useCallback(() => {
     if (window.confirm('Are you sure you want to clear all participants?')) {
-      setParticipants([]);
-      // FIXED: Only update participants in drawingState, not winner display
-      setDrawingState(prevState => ({ 
-        ...prevState, 
-        participants: [] 
-      }));
+      participantsHook.clear();
     }
-  }, [setParticipants, setDrawingState]);
+  }, [participantsHook]);
 
-  // FIXED: Enhanced startDrawing to properly reset display
+  // FIXED: Update startDrawing to use Firebase state
   const startDrawing = useCallback(() => {
     if (participants.length === 0 || isDrawing) return;
+    
+    console.log('Admin: Starting draw with participants:', participants.length);
     
     setIsDrawing(true);
     setCurrentWinners([]);
     setShowConfetti(false);
     
-    // FIXED: Properly reset all display states when starting new draw
-    setDrawingState({
+    // Update Firebase drawing state
+    updateDrawingState({
       isDrawing: true,
       currentWinners: [],
       showConfetti: false,
       selectedPrizeName: selectedPrize?.name,
       selectedPrizeImage: selectedPrize?.image,
-      selectedPrizeQuota: selectedPrize?.quota,
+      selectedPrizeQuota: selectedPrize?.remainingQuota || 1,
       participants: participants,
       drawStartTime: Date.now(),
-      showWinnerDisplay: false, // Explicitly reset winner display
+      showWinnerDisplay: false,
       shouldStartSpinning: false,
-      shouldResetToReady: false // Clear any pending reset
+      shouldResetToReady: false
     });
-  }, [participants, isDrawing, selectedPrize, setDrawingState]);
+  }, [participants, isDrawing, selectedPrize, updateDrawingState]);
 
-  // FIXED: Enhanced stopDrawing to enable persistent winner display
   const stopDrawing = useCallback((finalWinners?: Winner[]) => {
     if (!isDrawing) return;
+
+    console.log('Admin: Stopping draw with winners:', finalWinners);
 
     let newWinners: Winner[];
 
@@ -187,7 +144,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       
       const sessionId = Date.now().toString();
       newWinners = selectedParticipants.map((participant) => ({
-        id: `winner-${participant.id}-${Date.now()}`,
         name: participant.name,
         wonAt: new Date(),
         prizeId: selectedPrize?.id,
@@ -197,15 +153,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     }
     
     // Add to winners list
-    setWinners(prev => [...newWinners, ...prev]);
+    newWinners.forEach(winner => winnersHook.add(winner));
     
     // Update prize quota if prize was selected
     if (selectedPrize) {
-      setPrizes(prev => prev.map(prize => 
-        prize.id === selectedPrize.id 
-          ? { ...prize, remainingQuota: Math.max(0, prize.remainingQuota - newWinners.length) }
-          : prize
-      ));
+      prizesHook.update(selectedPrize.id, {
+        remainingQuota: Math.max(0, selectedPrize.remainingQuota - newWinners.length)
+      });
       
       // Clear selected prize if quota is exhausted
       if (selectedPrize.remainingQuota <= newWinners.length) {
@@ -215,26 +169,24 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     
     // Set current winners
     setCurrentWinners(newWinners);
-    setLastWinners(newWinners);
     
     // Show confetti
     setShowConfetti(true);
     setTimeout(() => {
       setShowConfetti(false);
-      // FIXED: Don't automatically clear confetti from drawingState
     }, 8000);
     
-    // FIXED: Update drawing state with persistent winner display
-    setDrawingState({
+    // Update Firebase state
+    updateDrawingState({
       isDrawing: false,
       currentWinners: newWinners,
       showConfetti: true,
       selectedPrizeName: selectedPrize?.name,
       selectedPrizeImage: selectedPrize?.image,
-      selectedPrizeQuota: selectedPrize?.quota,
+      selectedPrizeQuota: selectedPrize?.remainingQuota || 1,
       participants: participants,
       finalWinners: newWinners,
-      showWinnerDisplay: true, // Enable persistent winner display
+      showWinnerDisplay: true,
       shouldStartSpinning: false
     });
     
@@ -249,49 +201,45 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     }
     
     setIsDrawing(false);
-  }, [isDrawing, participants, currentWinners, selectedPrize, settings, setWinners, setPrizes, setLastWinners, setDrawingState, setSelectedPrizeId]);
+  }, [isDrawing, participants, currentWinners, selectedPrize, settings, winnersHook, prizesHook, updateDrawingState, setSelectedPrizeId]);
 
-  // FIXED: Enhanced clearCurrentWinners to properly clear display
   const clearCurrentWinners = useCallback(() => {
-    setCurrentWinners([]);
-    setLastWinners([]);
+    console.log('Admin: Clearing current winners');
     
-    // FIXED: Properly clear all winner-related states
-    setDrawingState(prev => ({ 
-      ...prev, 
+    setCurrentWinners([]);
+    
+    updateDrawingState({ 
       currentWinners: [], 
       showConfetti: false,
-      showWinnerDisplay: false, // Disable persistent winner display
+      showWinnerDisplay: false,
       finalWinners: []
-    }));
-  }, [setLastWinners, setDrawingState]);
+    });
+  }, [updateDrawingState]);
 
   // Prize management functions
   const addPrize = useCallback((prizeData: Omit<Prize, 'id' | 'createdAt'>) => {
-    const newPrize: Prize = {
+    const newPrize: Omit<Prize, 'id'> = {
       ...prizeData,
-      id: Date.now().toString(),
       createdAt: new Date(),
     };
-    setPrizes(prev => [...prev, newPrize]);
-  }, [setPrizes]);
+    prizesHook.add(newPrize);
+  }, [prizesHook]);
 
   const updatePrize = useCallback((id: string, updates: Partial<Prize>) => {
-    setPrizes(prev => prev.map(prize => 
-      prize.id === id ? { ...prize, ...updates } : prize
-    ));
-  }, [setPrizes]);
+    prizesHook.update(id, updates);
+  }, [prizesHook]);
 
   const deletePrize = useCallback((id: string) => {
-    setPrizes(prev => prev.filter(prize => prize.id !== id));
+    prizesHook.remove(id);
     // Clear selection if deleted prize was selected
     if (selectedPrizeId === id) {
       setSelectedPrizeId(null);
     }
-  }, [setPrizes, selectedPrizeId]);
+  }, [prizesHook, selectedPrizeId]);
 
   // Prize selection handler
   const handleSelectPrize = useCallback((prize: Prize | null) => {
+    console.log('Admin: Prize selected:', prize?.name);
     setSelectedPrizeId(prize?.id || null);
   }, []);
 
@@ -338,14 +286,31 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
   }, [winners]);
 
   const updateSettings = useCallback((newSettings: Partial<AppSettings>) => {
-    setSettings(prev => ({ ...prev, ...newSettings }));
-  }, [setSettings]);
+    const updatedSettings = { ...settings, ...newSettings };
+    if (settings.id) {
+      settingsHook.update(settings.id, updatedSettings);
+    } else {
+      settingsHook.add(updatedSettings);
+    }
+  }, [settings, settingsHook]);
 
   const openDisplayPage = useCallback(() => {
     window.open('/display', '_blank');
   }, []);
 
   const canDraw = participants.length > 0 && !isDrawing && !isLocked;
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading data from Firebase...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -365,7 +330,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
         onToggleFullscreen={openDisplayPage}
         onToggleLock={() => setIsLocked(prev => !prev)}
         onOpenSettings={() => setShowSettings(true)}
-        onLogout = {onLogout}
+        onLogout={onLogout}
       />
 
       <main className="container mx-auto px-4 py-8">
@@ -427,6 +392,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
               prizes={prizes}
               selectedPrizeId={selectedPrizeId}
               onRemoveParticipants={removeParticipants}
+              updateDrawingState={updateDrawingState}
             />
           </div>
 
@@ -434,9 +400,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
           <div>
             <WinnerHistory
               winners={winners}
-              prizes={prizes}
-              onExport={handleExport}
-              onPrint={handlePrint}
               isLocked={isLocked}
             />
           </div>

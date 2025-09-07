@@ -17,6 +17,7 @@ interface MultiDrawingAreaProps {
   prizes: Prize[];
   selectedPrizeId: string | null;
   onRemoveParticipants: (participantIds: string[]) => void;
+  updateDrawingState: (state: any) => void; // Add Firebase state updater
 }
 
 // Enhanced status types for better state management
@@ -43,6 +44,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
   prizes,
   selectedPrizeId,
   onRemoveParticipants,
+  updateDrawingState, // Firebase state updater
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [drawingDuration, setDrawingDuration] = useState(0);
@@ -165,7 +167,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     return { isValid: true };
   }, [selectedPrize, availableParticipants, drawCount]);
 
-  // FIXED: Enhanced handleDrawClick to reset winner display
+  // FIXED: Enhanced handleDrawClick - use Firebase instead of localStorage
   const handleDrawClick = useCallback(() => {
     const validation = validateDraw();
     if (!validation.isValid) {
@@ -173,41 +175,55 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
       return;
     }
     
-    // Reset winner display when starting new draw
-    const currentState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
-    const updatedState = {
-      ...currentState,
+    console.log('Starting draw with prize:', selectedPrize);
+    
+    // Update Firebase state instead of localStorage
+    updateDrawingState({
+      isDrawing: true,
+      currentWinners: [],
+      showConfetti: false,
+      shouldStartSpinning: false, // Reset spinning state
       showWinnerDisplay: false, // Reset winner display
-      currentWinners: [], // Clear current winners
-      shouldStartSpinning: false // Reset spinning state
-    };
-    localStorage.setItem('doorprize-drawing-state', JSON.stringify(updatedState));
+      selectedPrizeName: selectedPrize?.name,
+      selectedPrizeImage: selectedPrize?.image,
+      selectedPrizeQuota: selectedPrize?.remainingQuota || 1,
+      participants: participants,
+      drawStartTime: Date.now(),
+      finalWinners: []
+    });
     
     onStartDraw();
-  }, [validateDraw, onStartDraw]);
+  }, [validateDraw, onStartDraw, updateDrawingState, selectedPrize, participants]);
 
+  // FIXED: handleStartSpinning - use Firebase instead of localStorage
   const handleStartSpinning = useCallback(() => {
-    const currentState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
-    const updatedState = {
-      ...currentState,
-      shouldStartSpinning: true
-    };
-    localStorage.setItem('doorprize-drawing-state', JSON.stringify(updatedState));
-  }, []);
+    console.log('Starting spinning animation');
+    
+    // Update Firebase state to start spinning
+    updateDrawingState({
+      shouldStartSpinning: true,
+      isDrawing: true // Ensure drawing state is maintained
+    });
+  }, [updateDrawingState]);
 
+  // FIXED: handleStopDrawClick - use Firebase instead of localStorage  
   const handleStopDrawClick = useCallback(async () => {
+    console.log('Stopping draw and generating winners');
+    
     // Generate final winners
     const finalWinners = generateWinners();
     
-    // Update localStorage to stop spinning and enable persistent winner display
-    const currentState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
-    const updatedState = {
-      ...currentState,
+    console.log('Generated winners:', finalWinners);
+    
+    // Update Firebase state to stop spinning and enable persistent winner display
+    updateDrawingState({
+      isDrawing: false,
       shouldStartSpinning: false,
       showWinnerDisplay: true, // Enable persistent winner display
-      finalWinners: finalWinners
-    };
-    localStorage.setItem('doorprize-drawing-state', JSON.stringify(updatedState));
+      finalWinners: finalWinners,
+      currentWinners: finalWinners,
+      showConfetti: true
+    });
     
     // Stop the draw first
     onStopDraw(finalWinners);
@@ -219,7 +235,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         processWinnerRemoval(finalWinners);
       }, 500);
     }
-  }, [onStopDraw, processWinnerRemoval]);
+  }, [onStopDraw, processWinnerRemoval, updateDrawingState]);
 
   const generateWinners = useCallback((): Winner[] => {
     if (!selectedPrize || availableParticipants.length === 0) return [];
@@ -237,19 +253,19 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     }));
   }, [selectedPrize, availableParticipants, drawCount]);
 
-  // FIXED: Enhanced handleDeleteClick to also reset winner display
+  // FIXED: Enhanced handleDeleteClick - use Firebase instead of localStorage
   const handleDeleteClick = () => setShowDeleteConfirm(true);
   
   const handleConfirmDelete = () => {
-    // Reset winner display when clearing winners
-    const currentState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
-    const updatedState = {
-      ...currentState,
+    console.log('Clearing winners');
+    
+    // Update Firebase state to reset winner display
+    updateDrawingState({
       showWinnerDisplay: false, // Disable persistent winner display
       currentWinners: [],
-      finalWinners: []
-    };
-    localStorage.setItem('doorprize-drawing-state', JSON.stringify(updatedState));
+      finalWinners: [],
+      showConfetti: false
+    });
     
     onClearWinners();
     setShowDeleteConfirm(false);
@@ -262,14 +278,6 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
-
-  // Check if spinning has started
-  const getSpinningState = () => {
-    const currentState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
-    return currentState.shouldStartSpinning;
-  };
-
-  const shouldStartSpinning = getSpinningState();
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
@@ -290,7 +298,6 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
           </div>
         )}
       </div>
-
       {/* Prize Selection Status */}
       {selectedPrize ? (
         <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border-2 border-purple-200">
@@ -335,7 +342,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-orange-600" />
             <div>
-              <p className="font-medium text-orange-800">Hadiah Tidak Tertampil</p>
+              <p className="font-medium text-orange-800">Hadiah Tidak Terpilih</p>
               <p className="text-orange-600 text-sm">Silakan pilih hadiah dari daftar hadiah untuk memulai pengundian</p>
             </div>
           </div>
@@ -351,7 +358,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
           </div>
           <p className="text-2xl font-bold text-blue-800">{availableParticipants.length}</p>
           <p className="text-xs text-blue-600">
-            {participants.length - availableParticipants.length} akan menang
+            {participants.length - availableParticipants.length} sudah menang
           </p>
         </div>
         
@@ -370,9 +377,9 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-red-600" />
             <div>
-              <p className="font-medium text-red-800">Tidak ada Partisipan</p>
+              <p className="font-medium text-red-800">Tidak ada Peserta Tersisa</p>
               <p className="text-red-600 text-sm">
-              Tidak ada peserta yang tersedia untuk pengundian. pada dapet undian semua kayaknya WKWKW
+              Semua peserta sudah menjadi pemenang
               </p>
             </div>
           </div>
@@ -471,25 +478,23 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
               }
             </button>
           ) : (
-            <>
-              {!shouldStartSpinning ? (
-                <button
-                  onClick={handleStartSpinning}
-                  className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex-1 justify-center"
-                >
-                  <Play className="w-5 h-5 mr-2" />
-                  Mulai Spinning!
-                </button>
-              ) : (
-                <button
-                  onClick={handleStopDrawClick}
-                  className="flex items-center px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex-1 justify-center"
-                >
-                  <Square className="w-5 h-5 mr-2" />
-                  Stop Spinning
-                </button>
-              )}
-            </>
+            <div className="flex space-x-3 flex-1">
+              <button
+                onClick={handleStartSpinning}
+                className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex-1 justify-center"
+              >
+                <Play className="w-5 h-5 mr-2" />
+                Mulai Spinning!
+              </button>
+              
+              <button
+                onClick={handleStopDrawClick}
+                className="flex items-center px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex-1 justify-center"
+              >
+                <Square className="w-5 h-5 mr-2" />
+                Stop & Finalize
+              </button>
+            </div>
           )}
 
           {currentWinners.length > 0 && !isDrawing && (
@@ -518,10 +523,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                   className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full"
                 />
                 <span className="text-blue-600 font-medium">
-                  {shouldStartSpinning 
-                    ? 'Sedang Spinning... Klik "Stop Spinning" jika sudah siap!'
-                    : 'Undian sudah disiapkan. Klik "Mulai Spinning" untuk memulai undian!'
-                  }
+                  Undian aktif! Klik "Mulai Spinning" untuk animasi, lalu "Stop & Finalize" untuk hasil!
                 </span>
               </div>
             </div>
@@ -575,7 +577,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-green-600 flex items-center gap-2">
               <Trophy className="w-5 h-5" />
-              Undian Saat ini ({currentWinners.length})
+              Pemenang Terakhir ({currentWinners.length})
             </h3>
             {selectedPrize && (
               <span className="px-3 py-1 bg-purple-100 text-purple-700 text-sm rounded-full font-medium">
@@ -601,7 +603,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                     <div>
                       <p className="font-semibold text-gray-800">{winner.name}</p>
                       <p className="text-xs text-gray-500">
-                         {new Date(winner.wonAt).toLocaleTimeString()}
+                        
                       </p>
                     </div>
                   </div>

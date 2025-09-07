@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy } from 'lucide-react';
 import { Winner, AppSettings, Participant } from '../types';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useFirestore } from '../hooks/useFirestore';
+import { useFirebaseDrawingState } from '../hooks/useFirebaseDrawingState';
 import Confetti from 'react-confetti';
 
 interface DrawingState {
@@ -16,20 +17,24 @@ interface DrawingState {
   drawStartTime?: number;
   finalWinners?: Winner[];
   shouldStartSpinning?: boolean;
-   shouldResetToReady?: boolean;
+  shouldResetToReady?: boolean;
 }
 
 const DisplayPage: React.FC = () => {
-  const [settings] = useLocalStorage<AppSettings>('doorprize-settings', {
+  // Firebase hooks
+  const settingsHook = useFirestore<AppSettings & { id: string }>('settings');
+  const { drawingState } = useFirebaseDrawingState();
+  
+  const settings = settingsHook.data[0] || {
     primaryColor: '#2563eb',
     secondaryColor: '#1d4ed8',
     animationType: 'wheel',
     soundEnabled: true,
     backgroundMusic: false,
     multiDrawCount: 10
-  });
-  
-  const [drawingState] = useLocalStorage<DrawingState>('doorprize-drawing-state', {
+  };
+
+  const [localState, setLocalState] = useState<DrawingState>({
     isDrawing: false,
     currentWinners: [],
     showConfetti: false,
@@ -39,20 +44,6 @@ const DisplayPage: React.FC = () => {
     finalWinners: [],
     selectedPrizeQuota: 0,
     shouldStartSpinning: false
-  });
-
-  const [localState, setLocalState] = useState<DrawingState>({
-    ...{
-      isDrawing: false,
-      currentWinners: [],
-      showConfetti: false,
-      selectedPrizeName: undefined,
-      selectedPrizeImage: undefined,
-      participants: [],
-      finalWinners: [],
-      shouldStartSpinning: false
-    },
-    ...drawingState
   });
   
   const [rollingNames, setRollingNames] = useState<string[]>([]);
@@ -65,129 +56,69 @@ const DisplayPage: React.FC = () => {
   // Stable animation speed - no slowdown
   const STABLE_ANIMATION_SPEED = 100; // milliseconds
   
-
-  // Listen for changes in localStorage
+  // FIXED: Better state synchronization
   useEffect(() => {
-    const handleStorageChange = () => {
-      const newState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
-      if (newState.isDrawing !== undefined) {
-        const updatedState = {
-          ...{
-            isDrawing: false,
-            currentWinners: [],
-            showConfetti: false,
-            selectedPrizeName: undefined,
-            selectedPrizeImage: undefined,
-            participants: [],
-            finalWinners: [],
-            shouldStartSpinning: false
-          },
-          ...newState
-        };
-        
-        // Check if drawing just stopped - immediately show results
-        if (!updatedState.isDrawing && localState.isDrawing) {
-          setHasShownResults(true);
-          setIsSpinning(false);
-          if (updatedState.finalWinners && updatedState.finalWinners.length > 0) {
-            updatedState.currentWinners = [...updatedState.finalWinners];
-          }
-        }
-        
-        // Check if this is a new draw
-        if (updatedState.isDrawing && (!localState.isDrawing || updatedState.drawStartTime !== lastDrawStartTime)) {
-          setParticipantsSnapshot(updatedState.participants || []);
-          setLastDrawStartTime(updatedState.drawStartTime || Date.now());
-          setHasShownResults(false);
-          
-          // Start spinning only when shouldStartSpinning is true
-          if (updatedState.shouldStartSpinning) {
-            setIsSpinning(true);
-          }
-        }
-        
-        // Handle shouldStartSpinning flag
-        if (updatedState.shouldStartSpinning && updatedState.isDrawing && !isSpinning) {
-          setIsSpinning(true);
-        }
-        
-        if (!updatedState.isDrawing && updatedState.currentWinners && updatedState.currentWinners.length > 0) {
-          setHasShownResults(true);
-        }
-        
-        if (updatedState.currentWinners?.length === 0) {
-          setHasShownResults(false);
-        }
-        
-        setLocalState(updatedState);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
+    console.log('Firebase drawingState changed:', drawingState);
     
-    const interval = setInterval(() => {
-      const currentState = JSON.parse(localStorage.getItem('doorprize-drawing-state') || '{}');
-      if (JSON.stringify(currentState) !== JSON.stringify(localState)) {
-        const updatedState = {
-          ...{
-            isDrawing: false,
-            currentWinners: [],
-            showConfetti: false,
-            selectedPrizeName: undefined,
-            selectedPrizeImage: undefined,
-            participants: [],
-            finalWinners: [],
-            shouldStartSpinning: false
-          },
-          ...currentState
-        };
-        
-        if (!updatedState.isDrawing && localState.isDrawing) {
-          setHasShownResults(true);
-          setIsSpinning(false);
-          if (updatedState.finalWinners && updatedState.finalWinners.length > 0) {
-            updatedState.currentWinners = [...updatedState.finalWinners];
-          }
-        }
-        
-        if (updatedState.isDrawing && (!localState.isDrawing || updatedState.drawStartTime !== lastDrawStartTime)) {
-          setParticipantsSnapshot(updatedState.participants || []);
-          setLastDrawStartTime(updatedState.drawStartTime || Date.now());
-          setHasShownResults(false);
-          
-          // Start spinning only when shouldStartSpinning is true
-          if (updatedState.shouldStartSpinning) {
-            setIsSpinning(true);
-          }
-        }
-        
-        // Handle shouldStartSpinning flag
-        if (updatedState.shouldStartSpinning && updatedState.isDrawing && !isSpinning) {
-          setIsSpinning(true);
-        }
-        
-        if (!updatedState.isDrawing && updatedState.currentWinners && updatedState.currentWinners.length > 0) {
-          setHasShownResults(true);
-        }
-        
-        if (updatedState.currentWinners?.length === 0) {
-          setHasShownResults(false);
-        }
-        
-        setLocalState(updatedState);
-      }
-    }, 500);
+    // Update local state with all Firebase changes
+    setLocalState(prevState => ({
+      ...prevState,
+      ...drawingState
+    }));
+    
+    // Handle spinning state changes separately with immediate effect
+    if (drawingState.shouldStartSpinning !== undefined) {
+      setIsSpinning(drawingState.shouldStartSpinning);
+      console.log('Spinning state updated:', drawingState.shouldStartSpinning);
+    }
+  }, [drawingState]);
 
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
-    };
-  }, [localState, lastDrawStartTime, isSpinning]);
-
-  // Animation effect for multi-slot machines - STABLE SPEED
+  // FIXED: Handle drawing state changes with better logic
   useEffect(() => {
+    console.log('State change detected:', {
+      isDrawing: drawingState.isDrawing,
+      shouldStartSpinning: drawingState.shouldStartSpinning,
+      currentIsSpinning: isSpinning,
+      hasShownResults: hasShownResults
+    });
+
+    // Reset results when starting a new draw
+    if (drawingState.isDrawing && !localState.isDrawing) {
+      console.log('New draw started - resetting results');
+      setHasShownResults(false);
+      setParticipantsSnapshot(drawingState.participants || []);
+      setLastDrawStartTime(drawingState.drawStartTime || Date.now());
+    }
+    
+    // Show results when drawing stops
+    if (!drawingState.isDrawing && localState.isDrawing && drawingState.finalWinners?.length > 0) {
+      console.log('Drawing stopped - showing results');
+      setHasShownResults(true);
+      setIsSpinning(false);
+      setLocalState(prev => ({ ...prev, currentWinners: [...drawingState.finalWinners] }));
+    }
+    
+    // Clear results when winners are cleared
+    if (!drawingState.currentWinners?.length && localState.currentWinners?.length > 0) {
+      console.log('Winners cleared');
+      setHasShownResults(false);
+    }
+  }, [drawingState.isDrawing, drawingState.shouldStartSpinning, drawingState.currentWinners, drawingState.finalWinners, localState.isDrawing, localState.currentWinners]);
+
+  // FIXED: Animation effect for multi-slot machines
+  useEffect(() => {
+    console.log('Multi-slot animation effect:', {
+      isSpinning,
+      isDrawing: localState.isDrawing,
+      participantsLength: participantsSnapshot.length,
+      hasShownResults,
+      prizeQuota: localState.selectedPrizeQuota
+    });
+
     if (isSpinning && localState.isDrawing && participantsSnapshot.length > 0 && !hasShownResults && localState.selectedPrizeQuota > 1) {
       const drawCount = Math.min(localState.selectedPrizeQuota, participantsSnapshot.length);
+      
+      console.log('Starting multi-slot animation for', drawCount, 'slots');
       
       const interval = setInterval(() => {
         const newRollingNames = Array.from({ length: drawCount }, () => {
@@ -202,6 +133,7 @@ const DisplayPage: React.FC = () => {
       }, STABLE_ANIMATION_SPEED);
   
       return () => {
+        console.log('Clearing multi-slot animation interval');
         clearInterval(interval);
       };
     } else {
@@ -209,15 +141,28 @@ const DisplayPage: React.FC = () => {
     }
   }, [isSpinning, localState.isDrawing, participantsSnapshot, hasShownResults, localState.selectedPrizeQuota]);
 
-  // Animation effect for single name picker - STABLE SPEED
+  // FIXED: Animation effect for single name picker
   useEffect(() => {
+    console.log('Single-name animation effect:', {
+      isSpinning,
+      isDrawing: localState.isDrawing,
+      participantsLength: participantsSnapshot.length,
+      hasShownResults,
+      prizeQuota: localState.selectedPrizeQuota
+    });
+
     if (isSpinning && localState.isDrawing && participantsSnapshot.length > 0 && !hasShownResults && localState.selectedPrizeQuota === 1) {
+      console.log('Starting single-name animation');
+      
       const interval = setInterval(() => {
         const randomParticipant = participantsSnapshot[Math.floor(Math.random() * participantsSnapshot.length)];
-        setCurrentSingleName(randomParticipant?.name || '');
+        const newName = randomParticipant?.name || '';
+        setCurrentSingleName(newName);
+        console.log('Single name updated:', newName);
       }, STABLE_ANIMATION_SPEED);
 
       return () => {
+        console.log('Clearing single-name animation interval');
         clearInterval(interval);
       };
     } else {
@@ -244,6 +189,18 @@ const DisplayPage: React.FC = () => {
   };
 
   const gridLayout = getGridLayout(drawCount);
+
+  // Show loading state
+  if (settingsHook.loading) {
+    return (
+      <div className="fixed inset-0 bg-gradient-to-br from-blue-300 to-red-300 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-xl">Loading display...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -310,10 +267,9 @@ const DisplayPage: React.FC = () => {
               </motion.div>
             )}
           </div>
-
           {/* Main Content */}
           <div className="flex-1 flex items-center justify-center px-4 pt-24">
-        {localState.currentWinners && localState.currentWinners.length > 0 && hasShownResults ? (
+            {localState.currentWinners && localState.currentWinners.length > 0 && hasShownResults ? (
               // Winners Display - Horizontal Layout
               <motion.div
                 initial={{ opacity: 0 }}
@@ -365,19 +321,6 @@ const DisplayPage: React.FC = () => {
                             )}
 
                             <div className="relative z-10 h-full flex flex-col">
-                              {/* Position Number */}
-                              <div className="text-center mb-3">
-                                <motion.div
-                                  animate={{ 
-                                    scale: [1, 1.1, 1],
-                                    color: ["#10b981", "#059669", "#10b981"]
-                                  }}
-                                  transition={{ duration: 1.5, repeat: Infinity }}
-                                  className="text-2xl font-black text-emerald-500"
-                                >
-                                </motion.div>
-                              </div>
-
                               {/* Winner Name Display Area */}
                               <div className="flex-1 flex items-center justify-center relative px-2">
                                 <span className="text-lg font-bold text-slate-800 text-center leading-snug">
@@ -439,7 +382,6 @@ const DisplayPage: React.FC = () => {
                     ))}
                   </div>
                 )}
-
               </motion.div>
             ) : localState.isDrawing && !hasShownResults ? (
               // Drawing Animation
@@ -456,7 +398,6 @@ const DisplayPage: React.FC = () => {
                     {localState.selectedPrizeImage && (
                       <div className="absolute inset-0 opacity-5">
                         <img
-                          
                           alt="Prize"
                           className="w-full h-full object-cover rounded-3xl"
                           onError={(e) => {
@@ -518,8 +459,6 @@ const DisplayPage: React.FC = () => {
                       )}
                     </div>
                   </div>
-
-
                 </motion.div>
               ) : (
                 // Multi Slot Machines for quota > 1
@@ -565,20 +504,6 @@ const DisplayPage: React.FC = () => {
                           )}
                           
                           <div className="relative z-10 h-full flex flex-col">
-                            {/* Position Number */}
-                            <div className="text-center mb-3">
-                              <motion.div
-                                animate={{ 
-                                  scale: [1, 1.1, 1],
-                                  color: ["#10b981", "#059669", "#10b981"]
-                                }}
-                                transition={{ duration: 1.5, repeat: Infinity }}
-                                className="text-2xl font-black text-emerald-500"
-                              >
-                               
-                              </motion.div>
-                            </div>
-                            
                             {/* Main Display Area */}
                             <div className="flex-1 flex items-center justify-center relative">
                               <div className="w-full h-32 bg-slate-50 rounded-xl border-2 border-slate-300 overflow-hidden relative">
@@ -663,6 +588,7 @@ const DisplayPage: React.FC = () => {
                   >
                     {!isSpinning && (
                       <p className="text-2xl text-slate-600 font-semibold">
+                       
                       </p>
                     )}
                   </motion.div>
