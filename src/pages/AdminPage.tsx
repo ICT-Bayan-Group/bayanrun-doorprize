@@ -93,7 +93,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     }
   }, [participantsHook]);
 
-  // FIXED: Update startDrawing to use Firebase state
+  // FIXED: Update startDrawing - simplified since winners are now generated in MultiDrawingArea
   const startDrawing = useCallback(() => {
     if (participants.length === 0 || isDrawing) return;
     
@@ -103,7 +103,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     setCurrentWinners([]);
     setShowConfetti(false);
     
-    // Update Firebase drawing state
+    // Basic Firebase state - winners will be generated in MultiDrawingArea
     updateDrawingState({
       isDrawing: true,
       currentWinners: [],
@@ -115,54 +115,37 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       drawStartTime: Date.now(),
       showWinnerDisplay: false,
       shouldStartSpinning: false,
-      shouldResetToReady: false
+      shouldResetToReady: false,
+      shouldStartSlowdown: false
     });
   }, [participants, isDrawing, selectedPrize, updateDrawingState]);
 
+  // FIXED: Update stopDrawing - now handles pre-determined winners from MultiDrawingArea
   const stopDrawing = useCallback((finalWinners?: Winner[]) => {
     if (!isDrawing) return;
 
-    console.log('Admin: Stopping draw with winners:', finalWinners);
+    console.log('Admin: Processing final winners:', finalWinners);
 
-    let newWinners: Winner[];
-
-    // Use provided winners or generate new ones
-    if (finalWinners) {
-      newWinners = finalWinners;
-    } else {
-      const availableParticipants = participants.filter(p => 
-        !currentWinners.some(w => w.name === p.name)
-      );
-      
-      const drawCount = selectedPrize ? 
-        Math.min(selectedPrize.remainingQuota, availableParticipants.length) : 
-        Math.min(settings.multiDrawCount, availableParticipants.length);
-      
-      // Select random winners
-      const shuffled = [...availableParticipants].sort(() => Math.random() - 0.5);
-      const selectedParticipants = shuffled.slice(0, drawCount);
-      
-      const sessionId = Date.now().toString();
-      newWinners = selectedParticipants.map((participant) => ({
-        name: participant.name,
-        wonAt: new Date(),
-        prizeId: selectedPrize?.id,
-        prizeName: selectedPrize?.name,
-        drawSession: sessionId,
-      }));
+    if (!finalWinners || finalWinners.length === 0) {
+      console.error('Admin: No final winners provided');
+      return;
     }
+
+    // These winners are already generated and passed from MultiDrawingArea
+    const newWinners = finalWinners;
     
-    // Add to winners list
+    // Add to winners database
     newWinners.forEach(winner => winnersHook.add(winner));
     
     // Update prize quota if prize was selected
     if (selectedPrize) {
+      const newQuota = Math.max(0, selectedPrize.remainingQuota - newWinners.length);
       prizesHook.update(selectedPrize.id, {
-        remainingQuota: Math.max(0, selectedPrize.remainingQuota - newWinners.length)
+        remainingQuota: newQuota
       });
       
       // Clear selected prize if quota is exhausted
-      if (selectedPrize.remainingQuota <= newWinners.length) {
+      if (newQuota <= 0) {
         setSelectedPrizeId(null);
       }
     }
@@ -174,21 +157,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     setShowConfetti(true);
     setTimeout(() => {
       setShowConfetti(false);
+      // Update Firebase state to hide confetti
+      updateDrawingState({ showConfetti: false });
     }, 8000);
-    
-    // Update Firebase state
-    updateDrawingState({
-      isDrawing: false,
-      currentWinners: newWinners,
-      showConfetti: true,
-      selectedPrizeName: selectedPrize?.name,
-      selectedPrizeImage: selectedPrize?.image,
-      selectedPrizeQuota: selectedPrize?.remainingQuota || 1,
-      participants: participants,
-      finalWinners: newWinners,
-      showWinnerDisplay: true,
-      shouldStartSpinning: false
-    });
     
     // Play sound effect
     if (settings.soundEnabled) {
@@ -201,7 +172,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     }
     
     setIsDrawing(false);
-  }, [isDrawing, participants, currentWinners, selectedPrize, settings, winnersHook, prizesHook, updateDrawingState, setSelectedPrizeId]);
+  }, [isDrawing, selectedPrize, settings, winnersHook, prizesHook, updateDrawingState, setSelectedPrizeId]);
 
   const clearCurrentWinners = useCallback(() => {
     console.log('Admin: Clearing current winners');
@@ -212,7 +183,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       currentWinners: [], 
       showConfetti: false,
       showWinnerDisplay: false,
-      finalWinners: []
+      finalWinners: [],
+      predeterminedWinners: [],
+      shouldStartSlowdown: false,
+      shouldStartSpinning: false
     });
   }, [updateDrawingState]);
 
@@ -348,6 +322,30 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
             </button>
           </div>
         </div>
+
+        {/* NEW: Natural Slowdown Status Indicator */}
+        {drawingState.shouldStartSlowdown && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 bg-yellow-100 border border-yellow-300 rounded-lg"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  className="w-5 h-5 border-2 border-yellow-600 border-t-transparent rounded-full"
+                />
+                <div>
+                  <h3 className="text-lg font-semibold text-yellow-800">Natural Slowdown Active</h3>
+                  <p className="text-yellow-600">Animasi sedang melambat secara natural menuju pemenang yang sudah ditentukan...</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
 
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
           {/* Left Column - Participants */}
