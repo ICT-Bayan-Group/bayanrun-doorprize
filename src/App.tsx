@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import AdminPage from './pages/AdminPage';
 import DisplayPage from './pages/DisplayPage';
 import LoginPage from './components/LoginPage';
-import FirebaseStatus from './components/FirebaseStatus';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -83,43 +82,40 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const App: React.FC = () => {
   return (
-    <>
-      <FirebaseStatus />
-      <Router>
-        <Routes>
-          {/* Protected Admin Routes */}
-          <Route 
-            path="/" 
-            element={
-              <ProtectedRoute>
-                <AdminPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/admin" 
-            element={
-              <ProtectedRoute>
-                <AdminPage />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* Public Display Route */}
-          <Route 
-            path="/display" 
-            element={
-              <PublicRoute>
-                <DisplayPage />
-              </PublicRoute>
-            } 
-          />
-          
-          {/* Fallback Route */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
-    </>
+    <Router>
+      <Routes>
+        {/* Protected Admin Routes */}
+        <Route 
+          path="/" 
+          element={
+            <ProtectedRoute>
+              <AdminPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin" 
+          element={
+            <ProtectedRoute>
+              <AdminPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* Public Display Route */}
+        <Route 
+          path="/display" 
+          element={
+            <PublicRoute>
+              <DisplayPage />
+            </PublicRoute>
+          } 
+        />
+        
+        {/* Fallback Route */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
   );
 };
 
