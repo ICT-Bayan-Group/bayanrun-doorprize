@@ -185,20 +185,18 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
                 )}
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Kuota (Kuota Pemenang)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="50"
-                  value={formData.quota}
-                  onChange={(e) => setFormData(prev => ({ ...prev, quota: parseInt(e.target.value) || 1 }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              
+             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Kuota Pemenang
+              </label>
+              <input
+                type="number"
+                value={formData.quota}
+                onChange={(e) => setFormData(prev => ({ ...prev, quota: parseInt(e.target.value) || 0 }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                style={{ MozAppearance: 'textfield' }}
+              />
+            </div>  
               <div className="flex gap-2">
                 <button
                   type="submit"

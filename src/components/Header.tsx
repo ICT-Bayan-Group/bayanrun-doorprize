@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Settings, Monitor, Lock, Unlock, LogOut } from 'lucide-react';
+import { Trophy, Settings, Monitor, Lock, Unlock, LogOut, CheckCircle, AlertCircle } from 'lucide-react';
+import { onSnapshot, doc } from 'firebase/firestore';
+import { db } from '../config/firebase';
 
 interface HeaderProps {
   logo?: string;
@@ -9,7 +11,7 @@ interface HeaderProps {
   onToggleFullscreen: () => void;
   onToggleLock: () => void;
   onOpenSettings: () => void;
-  onLogout?: () => void; // Tambahkan prop logout
+  onLogout?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -19,8 +21,34 @@ const Header: React.FC<HeaderProps> = ({
   onToggleFullscreen,
   onToggleLock,
   onOpenSettings,
-  onLogout // Tambahkan prop logout
+  onLogout
 }) => {
+  // Firebase status states
+  const [isConnected, setIsConnected] = useState<boolean>(true);
+  const [lastSync, setLastSync] = useState<Date>(new Date());
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Test connection by listening to a test document
+    const testDoc = doc(db, 'connection-test', 'status');
+    
+    const unsubscribe = onSnapshot(
+      testDoc,
+      () => {
+        setIsConnected(true);
+        setLastSync(new Date());
+        setError(null);
+      },
+      (err) => {
+        setIsConnected(false);
+        setError(err.message);
+        console.error('Firebase connection error:', err);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
   const handleLogout = () => {
     if (window.confirm('Apakah Anda yakin ingin keluar?')) {
       onLogout?.();
@@ -48,6 +76,35 @@ const Header: React.FC<HeaderProps> = ({
         
         {!isFullscreen && (
           <div className="flex items-center gap-2">
+            {/* Firebase Status Indicator */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${
+                isConnected 
+                  ? 'bg-green-100 text-green-800 border border-green-200' 
+                  : 'bg-red-100 text-red-800 border border-red-200'
+              }`}
+            >
+              {isConnected ? (
+                <>
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Connected</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="w-4 h-4" />
+                  <span>Disconnected</span>
+                </>
+              )}
+              
+              {error && (
+                <div className="ml-2 text-xs opacity-75 max-w-32 truncate" title={error}>
+                  {error}
+                </div>
+              )}
+            </motion.div>
+
             <button
               onClick={onToggleLock}
               className={`p-2 rounded-lg transition-colors ${

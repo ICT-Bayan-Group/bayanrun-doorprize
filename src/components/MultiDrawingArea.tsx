@@ -253,15 +253,15 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     }));
   }, [selectedPrize, availableParticipants, drawCount]);
 
-  // FIXED: Enhanced handleDeleteClick - use Firebase instead of localStorage
+ // FIXED: Enhanced handleDeleteClick - use Firebase instead of localStorage
   const handleDeleteClick = () => setShowDeleteConfirm(true);
   
   const handleConfirmDelete = () => {
     console.log('Clearing winners');
     
-    // Update Firebase state to reset winner display
+    // Update Firebase state - only defined values
     updateDrawingState({
-      showWinnerDisplay: false, // Disable persistent winner display
+      showWinnerDisplay: false,
       currentWinners: [],
       finalWinners: [],
       showConfetti: false
