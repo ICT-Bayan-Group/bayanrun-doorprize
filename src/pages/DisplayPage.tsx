@@ -436,7 +436,7 @@ const DisplayPage: React.FC = () => {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={`bg-white bg-opacity-90 rounded-full px-6 py-3 shadow-lg border ${
-                  hasConverged ? 'border-green-300 bg-green-50' : 'border-blue-300'
+                  hasConverged ? 'border-yellow-300 bg-yellow-50' : 'border-blue-300'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -444,16 +444,16 @@ const DisplayPage: React.FC = () => {
                     animate={{ rotate: 360 }}
                     transition={{ duration: hasConverged ? 0.5 : 2, repeat: Infinity, ease: "linear" }}
                     className={`w-5 h-5 border-2 ${
-                      hasConverged ? 'border-green-600 border-t-transparent' : 'border-blue-600 border-t-transparent'
+                      hasConverged ? 'border-yellow-600 border-t-transparent' : 'border-blue-600 border-t-transparent'
                     } rounded-full`}
                   />
                   <span className={`font-medium ${hasConverged ? 'text-green-800' : 'text-slate-800'}`}>
-                    {hasConverged ? '🎯 Locked to Winners!' : `Melambat... ${Math.round(slowdownProgress * 100)}%`}
+                    {hasConverged ? '' : `Melambat... ${Math.round(slowdownProgress * 100)}%`}
                   </span>
                 </div>
                 <div className="w-full bg-slate-200 rounded-full h-1 mt-2">
                   <motion.div 
-                    className={`h-1 rounded-full ${hasConverged ? 'bg-green-600' : 'bg-blue-600'}`}
+                    className={`h-1 rounded-full ${hasConverged ? 'bg-yellow-600' : 'bg-blue-600'}`}
                     initial={{ width: 0 }}
                     animate={{ width: `${slowdownProgress * 100}%` }}
                     transition={{ duration: 0.1 }}
@@ -461,9 +461,7 @@ const DisplayPage: React.FC = () => {
                 </div>
                 {hasConverged && (
                   <div className="text-center mt-2">
-                    <span className="text-xs text-green-600 font-medium">
-                      Animation locked to predetermined winners
-                    </span>
+                   
                   </div>
                 )}
               </motion.div>
@@ -766,14 +764,14 @@ const DisplayPage: React.FC = () => {
                                         hasConverged 
                                           ? 'border-green-400 bg-green-100 shadow-green-200' 
                                           : isSlowingDown && slowdownProgress > 0.6 
-                                            ? 'border-emerald-200 bg-emerald-50' 
-                                            : 'border-emerald-200 bg-white'
+                                            ? 'border-yellow-200 bg-yellow-50' 
+                                            : 'border-yellow-200 bg-white'
                                       }`}>
-                                        <span className={`text-sm font-bold block leading-tight ${
+                                        <span className={`text-sm font-bold block  ${
                                           hasConverged 
                                             ? 'text-green-700' 
                                             : isSlowingDown && slowdownProgress > 0.8 
-                                              ? 'text-emerald-600' 
+                                              ? 'text-yellow-600' 
                                               : 'text-slate-800'
                                         }`}>
                                           {rollingNames[columnIndex] || '...'}
