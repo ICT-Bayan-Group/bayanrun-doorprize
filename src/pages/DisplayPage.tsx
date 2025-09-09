@@ -448,7 +448,7 @@ const DisplayPage: React.FC = () => {
                     } rounded-full`}
                   />
                   <span className={`font-medium ${hasConverged ? 'text-green-800' : 'text-slate-800'}`}>
-                    {hasConverged ? '🎯 Locked to Winners!' : `Melambat... ${Math.round(slowdownProgress * 100)}%`}
+                    {hasConverged ? '' : `Melambat... ${Math.round(slowdownProgress * 100)}%`}
                   </span>
                 </div>
                 <div className="w-full bg-slate-200 rounded-full h-1 mt-2">
@@ -461,9 +461,7 @@ const DisplayPage: React.FC = () => {
                 </div>
                 {hasConverged && (
                   <div className="text-center mt-2">
-                    <span className="text-xs text-green-600 font-medium">
-                      Animation locked to predetermined winners
-                    </span>
+                   
                   </div>
                 )}
               </motion.div>
