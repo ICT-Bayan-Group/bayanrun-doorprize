@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Upload, Trash2, Users, X } from 'lucide-react';
+import { Plus, Upload, Trash2, Users, X, ChevronDown } from 'lucide-react';
 import { Participant } from '../types';
 import { importFromFile } from '../utils/fileHandling';
 
@@ -13,6 +13,8 @@ interface ParticipantManagerProps {
   isLocked: boolean;
 }
 
+type ImportMode = 'nama' | 'bib';
+
 const ParticipantManager: React.FC<ParticipantManagerProps> = ({
   participants,
   onAddParticipant,
@@ -23,6 +25,8 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
 }) => {
   const [newName, setNewName] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [importMode, setImportMode] = useState<ImportMode>('nama');
+  const [showModeDropdown, setShowModeDropdown] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddName = (e: React.FormEvent) => {
@@ -39,7 +43,7 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
 
     setIsImporting(true);
     try {
-      const names = await importFromFile(file);
+      const names = await importFromFile(file, importMode);
       onImportParticipants(names);
     } catch (error) {
       alert('Error importing file. Please check the format and try again.');
@@ -50,6 +54,11 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
       }
     }
   };
+
+  const importModeOptions = [
+    { value: 'nama' as ImportMode, label: 'Import Nama' },
+    { value: 'bib' as ImportMode, label: 'Import BIB' }
+  ];
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -86,14 +95,43 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
               onChange={handleFileImport}
               className="hidden"
             />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isImporting}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50"
-            >
-              <Upload className="w-4 h-4" />
-              {isImporting ? 'Importing...' : 'CSV/TXT'}
-            </button>
+            
+            {/* Import Mode Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowModeDropdown(!showModeDropdown)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                disabled={isImporting}
+              >
+                <Upload className="w-4 h-4" />
+                {isImporting 
+                  ? 'Importing...' 
+                  : importModeOptions.find(opt => opt.value === importMode)?.label || 'Import CSV/TXT'
+                }
+                <ChevronDown className="w-4 h-4" />
+              </button>
+              
+              {showModeDropdown && (
+                <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-full">
+                  {importModeOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        setImportMode(option.value);
+                        setShowModeDropdown(false);
+                        fileInputRef.current?.click();
+                      }}
+                      className={`w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors first:rounded-t-lg last:rounded-b-lg ${
+                        importMode === option.value ? 'bg-green-50 text-green-700' : 'text-gray-700'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             
             {participants.length > 0 && (
               <button
@@ -103,6 +141,17 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
+          </div>
+
+          {/* Import Mode Info */}
+          <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+            <p><strong>Mode Import:</strong> {importModeOptions.find(opt => opt.value === importMode)?.label}</p>
+            <p className="mt-1">
+              {importMode === 'nama' 
+                ? 'File CSV akan mencari kolom "Nama" atau "Name" untuk diimpor sebagai peserta'
+                : 'File CSV akan mencari kolom "BIB" atau "Bib" untuk diimpor sebagai peserta (nomor peserta)'
+              }
+            </p>
           </div>
         </div>
       )}
