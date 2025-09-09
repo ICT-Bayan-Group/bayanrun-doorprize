@@ -401,32 +401,6 @@ const DisplayPage: React.FC = () => {
                 className="h-24 w-auto"
               />
             )}
-
-            {/* Prize Info - Right Top */}
-            {localState.selectedPrizeName && (
-              <motion.div
-                initial={{ x: 100, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="inline-flex items-center gap-4 px-10 py-5 bg-white rounded-xl shadow-lg border"
-              >
-                {localState.selectedPrizeImage && (
-                  <img
-                    src={localState.selectedPrizeImage}
-                    alt={localState.selectedPrizeName}
-                    className="w-20 h-20 object-cover rounded-lg shadow-md"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                    }}
-                  />
-                )}
-                <div className="text-left">
-                  <p className="text-lg font-bold text-slate-800 uppercase">{localState.selectedPrizeName}</p>
-                  <p className="text-sm text-slate-600">Hadiah Undian</p>
-                </div>
-              </motion.div>
-            )}
           </div>
 
           {/* FIXED: Enhanced slowdown progress indicator */}
@@ -476,16 +450,7 @@ const DisplayPage: React.FC = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="w-full"
-              >
-                <motion.h2
-                  initial={{ y: 50, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                  className="text-6xl font-bold text-emerald-600 mb-12 text-center"
-                >
-                 PEMENANG DOORPRIZE
-                </motion.h2>
-                
+              > 
                 {/* Winner Cards - Full width layout when > 1 */}
                 {localState.currentWinners.length > 1 ? (
                   <div className="px-4">
