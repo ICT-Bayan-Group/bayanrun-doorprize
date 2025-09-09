@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy } from 'lucide-react';
+import { motion} from 'framer-motion';
 import { Winner, AppSettings, Participant } from '../types';
 import { useFirestore } from '../hooks/useFirestore';
 import { useFirebaseDrawingState } from '../hooks/useFirebaseDrawingState';
@@ -60,12 +59,14 @@ const DisplayPage: React.FC = () => {
   const [isSlowingDown, setIsSlowingDown] = useState(false);
   const [currentSpeed, setCurrentSpeed] = useState(100);
   const [slowdownProgress, setSlowdownProgress] = useState(0);
-  const [hasConverged, setHasConverged] = useState(false); // NEW: Track if animation has converged to final winners
-  const [finalConvergedNames, setFinalConvergedNames] = useState<string[]>([]); // NEW: Store converged names
+  const [hasConverged, setHasConverged] = useState(false);
+  const [finalConvergedNames, setFinalConvergedNames] = useState<string[]>([]);
+  const [showConvergedResult, setShowConvergedResult] = useState(false); // NEW: Control extended display
   
   // Base animation speed
   const BASE_SPEED = 100; // milliseconds
   const SLOWDOWN_DURATION = 3000; // 3 seconds
+  const CONVERGED_DISPLAY_DURATION = 5000; // 5 seconds - NEW: Extended display time
   
   // FIXED: Enhanced speed progression with final lock phase
   const getSlowdownSpeed = (progress: number): number => {
@@ -109,6 +110,7 @@ const DisplayPage: React.FC = () => {
       setSlowdownProgress(0);
       setHasConverged(false); // Reset convergence state
       setFinalConvergedNames([]); // Reset converged names
+      setShowConvergedResult(false); // Reset extended display
     }
   }, [drawingState, isSlowingDown]);
 
@@ -132,16 +134,7 @@ const DisplayPage: React.FC = () => {
       setSlowdownProgress(0);
       setHasConverged(false);
       setFinalConvergedNames([]);
-    }
-    
-    // Show results when drawing stops
-    if (!drawingState.isDrawing && localState.isDrawing && drawingState.finalWinners?.length > 0) {
-      console.log('Drawing stopped - showing results');
-      setHasShownResults(true);
-      setIsSpinning(false);
-      setIsSlowingDown(false);
-      setHasConverged(false);
-      setLocalState(prev => ({ ...prev, currentWinners: [...drawingState.finalWinners] }));
+      setShowConvergedResult(false);
     }
     
     // Clear results when winners are cleared
@@ -151,8 +144,31 @@ const DisplayPage: React.FC = () => {
       setIsSlowingDown(false);
       setHasConverged(false);
       setFinalConvergedNames([]);
+      setShowConvergedResult(false);
     }
   }, [drawingState.isDrawing, drawingState.shouldStartSpinning, drawingState.currentWinners, drawingState.finalWinners, localState.isDrawing, localState.currentWinners]);
+
+  // NEW: Handle extended display after convergence
+  useEffect(() => {
+    if (hasConverged && !showConvergedResult) {
+      console.log('Starting extended converged result display');
+      setShowConvergedResult(true);
+      
+      // Set timer to eventually hide the result
+      const timer = setTimeout(() => {
+        console.log('Extended display timer completed');
+        setShowConvergedResult(false);
+        setIsSpinning(false);
+        setIsSlowingDown(false);
+        setHasConverged(false);
+        
+        // Stop confetti
+        setLocalState(prev => ({ ...prev, showConfetti: false }));
+      }, CONVERGED_DISPLAY_DURATION);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [hasConverged, showConvergedResult, localState.finalWinners]);
 
   // FIXED: Enhanced natural slowdown effect with convergence locking
   useEffect(() => {
@@ -196,7 +212,6 @@ const DisplayPage: React.FC = () => {
       if (progress >= 1) {
         console.log('Natural slowdown completed');
         setIsSlowingDown(false);
-        setIsSpinning(false);
         clearInterval(slowdownInterval);
       }
     }, 100); // Update every 100ms for smooth progress
@@ -210,6 +225,7 @@ const DisplayPage: React.FC = () => {
       isSpinning,
       isSlowingDown,
       hasConverged,
+      showConvergedResult,
       isDrawing: localState.isDrawing,
       participantsLength: participantsSnapshot.length,
       hasShownResults,
@@ -217,10 +233,10 @@ const DisplayPage: React.FC = () => {
       predeterminedWinners: localState.predeterminedWinners?.length
     });
 
-    if ((isSpinning || isSlowingDown) && localState.isDrawing && participantsSnapshot.length > 0 && !hasShownResults && localState.selectedPrizeQuota > 1) {
+    if ((isSpinning || isSlowingDown || showConvergedResult) && localState.isDrawing && participantsSnapshot.length > 0 && !hasShownResults && localState.selectedPrizeQuota > 1) {
       
       // FIXED: If already converged, don't change the names anymore
-      if (hasConverged && finalConvergedNames.length > 0) {
+      if ((hasConverged || showConvergedResult) && finalConvergedNames.length > 0) {
         console.log('⚡ Animation locked to converged winners:', finalConvergedNames);
         setRollingNames([...finalConvergedNames]); // Keep showing the same winners
         return;
@@ -235,7 +251,7 @@ const DisplayPage: React.FC = () => {
       
       const interval = setInterval(() => {
         // Skip if converged
-        if (hasConverged) {
+        if (hasConverged || showConvergedResult) {
           clearInterval(interval);
           return;
         }
@@ -269,14 +285,15 @@ const DisplayPage: React.FC = () => {
     } else {
       setRollingNames([]);
     }
-  }, [isSpinning, isSlowingDown, hasConverged, finalConvergedNames, currentSpeed, slowdownProgress, localState.isDrawing, participantsSnapshot, hasShownResults, localState.selectedPrizeQuota, localState.predeterminedWinners]);
+  }, [isSpinning, isSlowingDown, hasConverged, showConvergedResult, finalConvergedNames, currentSpeed, slowdownProgress, localState.isDrawing, participantsSnapshot, hasShownResults, localState.selectedPrizeQuota, localState.predeterminedWinners]);
 
-  // FIXED: Single name animation with proper convergence locking
+  // FIXED: Single name animation with proper convergence locking and extended display
   useEffect(() => {
     console.log('Single-name animation effect:', {
       isSpinning,
       isSlowingDown,
       hasConverged,
+      showConvergedResult,
       isDrawing: localState.isDrawing,
       participantsLength: participantsSnapshot.length,
       hasShownResults,
@@ -284,10 +301,10 @@ const DisplayPage: React.FC = () => {
       predeterminedWinners: localState.predeterminedWinners?.length
     });
 
-    if ((isSpinning || isSlowingDown) && localState.isDrawing && participantsSnapshot.length > 0 && !hasShownResults && localState.selectedPrizeQuota === 1) {
+    if ((isSpinning || isSlowingDown || showConvergedResult) && localState.isDrawing && participantsSnapshot.length > 0 && !hasShownResults && localState.selectedPrizeQuota === 1) {
       
       // FIXED: If already converged, don't change the name anymore
-      if (hasConverged && finalConvergedNames.length > 0) {
+      if ((hasConverged || showConvergedResult) && finalConvergedNames.length > 0) {
         console.log('⚡ Single name locked to converged winner:', finalConvergedNames[0]);
         setCurrentSingleName(finalConvergedNames[0]); // Keep showing the same winner
         return;
@@ -300,8 +317,8 @@ const DisplayPage: React.FC = () => {
       const speed = isSlowingDown ? currentSpeed : BASE_SPEED;
       
       const interval = setInterval(() => {
-        // Skip if converged
-        if (hasConverged) {
+        // Skip if converged or showing result
+        if (hasConverged || showConvergedResult) {
           clearInterval(interval);
           return;
         }
@@ -327,10 +344,10 @@ const DisplayPage: React.FC = () => {
         console.log('Clearing single-name animation interval');
         clearInterval(interval);
       };
-    } else {
+    } else if (!localState.isDrawing) {
       setCurrentSingleName('');
     }
-  }, [isSpinning, isSlowingDown, hasConverged, finalConvergedNames, currentSpeed, slowdownProgress, localState.isDrawing, participantsSnapshot, hasShownResults, localState.selectedPrizeQuota, localState.predeterminedWinners]);
+  }, [isSpinning, isSlowingDown, hasConverged, showConvergedResult, finalConvergedNames, currentSpeed, slowdownProgress, localState.isDrawing, participantsSnapshot, hasShownResults, localState.selectedPrizeQuota, localState.predeterminedWinners]);
 
   const prizeQuota = localState.selectedPrizeQuota || 1;
   const drawCount = Math.min(prizeQuota, participantsSnapshot.length || localState.participants?.length || 0);
@@ -379,7 +396,23 @@ const DisplayPage: React.FC = () => {
         }}
       >
         <div className="fixed inset-0 bg-gradient-to-br from-blue-300 to-red-300 flex flex-col text-slate-800 overflow-hidden">
-          {localState.showConfetti && localState.currentWinners && localState.currentWinners.length > 0 && (
+          {/* Large Background Prize Image */}
+          {localState.selectedPrizeImage && (
+            <div className="absolute inset-0 z-0">
+              <img
+                src={localState.selectedPrizeImage}
+                alt="Prize Background"
+                className="w-1/2 h-1/2 object-contain opacity-100 mx-auto my-52"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-300/60 to-red-300/60"></div>
+            </div>
+          )}
+
+          {(localState.showConfetti || showConvergedResult) && hasConverged && (
             <Confetti
               width={window.innerWidth}
               height={window.innerHeight}
@@ -404,7 +437,7 @@ const DisplayPage: React.FC = () => {
           </div>
 
           {/* FIXED: Enhanced slowdown progress indicator */}
-          {isSlowingDown && (
+          {isSlowingDown && !showConvergedResult && (
             <div className="absolute top-32 left-1/2 transform -translate-x-1/2 z-20">
               <motion.div
                 initial={{ opacity: 0, y: -20 }}
@@ -422,7 +455,7 @@ const DisplayPage: React.FC = () => {
                     } rounded-full`}
                   />
                   <span className={`font-medium ${hasConverged ? 'text-green-800' : 'text-slate-800'}`}>
-                    {hasConverged ? '' : `Melambat... ${Math.round(slowdownProgress * 100)}%`}
+                    {hasConverged ? 'Locked!' : `Melambat... ${Math.round(slowdownProgress * 100)}%`}
                   </span>
                 </div>
                 <div className="w-full bg-slate-200 rounded-full h-1 mt-2">
@@ -433,124 +466,14 @@ const DisplayPage: React.FC = () => {
                     transition={{ duration: 0.1 }}
                   />
                 </div>
-                {hasConverged && (
-                  <div className="text-center mt-2">
-                   
-                  </div>
-                )}
               </motion.div>
             </div>
           )}
 
           {/* Main Content */}
-          <div className="flex-1 flex items-center justify-center px-4 pt-24">
-            {localState.currentWinners && localState.currentWinners.length > 0 && hasShownResults ? (
-              // Winners Display - Horizontal Layout
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="w-full"
-              > 
-                {/* Winner Cards - Full width layout when > 1 */}
-                {localState.currentWinners.length > 1 ? (
-                  <div className="px-4">
-                    <div 
-                      className="gap-3"
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: `repeat(${Math.min(localState.currentWinners.length, 10)}, minmax(0, 1fr))`,
-                        width: '100%'
-                      }}
-                    >
-                      {localState.currentWinners.map((winner, index) => (
-                        <motion.div
-                          key={winner.id}
-                          initial={{ y: 50, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          transition={{ delay: index * 0.05 }}
-                          className="relative"
-                        >
-                          <div className="bg-white rounded-2xl p-4 shadow-xl border-2 border-slate-200 relative overflow-hidden min-h-[260px]">
-                            {/* Prize Background */}
-                            {localState.selectedPrizeImage && (
-                              <div className="absolute inset-0 opacity-5">
-                                <img
-                                  src={localState.selectedPrizeImage}
-                                  alt="Prize"
-                                  className="w-full h-full object-cover rounded-3xl"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                  }}
-                                />
-                              </div>
-                            )}
-
-                            <div className="relative z-10 h-full flex flex-col">
-                              {/* Winner Name Display Area */}
-                              <div className="flex-1 flex items-center justify-center relative px-2">
-                                <span className="text-lg font-bold text-slate-800 text-center leading-snug">
-                                  {winner.name}
-                                </span>
-                              </div>
-
-                              {/* Prize Image at Bottom */}
-                              {localState.selectedPrizeImage && (
-                                <div className="mt-4 text-center">
-                                  <img
-                                    src={localState.selectedPrizeImage}
-                                    alt={localState.selectedPrizeName}
-                                    className="w-12 h-12 object-cover rounded-lg mx-auto opacity-60 shadow-md"
-                                    onError={(e) => {
-                                      const target = e.target as HTMLImageElement;
-                                      target.style.display = 'none';
-                                    }}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex justify-center">
-                    {localState.currentWinners.map((winner, index) => (
-                      <motion.div
-                        key={winner.id}
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ 
-                          delay: 0.5 + (index * 0.1),
-                          type: "spring",
-                          stiffness: 100
-                        }}
-                        className="bg-white rounded-2xl p-6 shadow-xl border-2 border-slate-200 text-center"
-                        style={{ minWidth: '260px' }}
-                      >
-                        <div className="text-4xl mb-3">🏆</div>
-                        <p className="text-2xl font-bold text-slate-800 mb-3">
-                          {winner.name}
-                        </p>
-                        {localState.selectedPrizeImage && (
-                          <img
-                            src={localState.selectedPrizeImage}
-                            alt={localState.selectedPrizeName}
-                            className="w-24 h-24 object-cover rounded-xl mx-auto opacity-70"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                            }}
-                          />
-                        )}
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            ) : localState.isDrawing && !hasShownResults ? (
-              // Drawing Animation
+          <div className="flex-1 flex items-center justify-center px-4 pt-24 relative z-10">
+            {localState.isDrawing || showConvergedResult ? (
+              // Drawing Animation or Extended Result Display
               prizeQuota === 1 ? (
                 // Single Name Picker for quota 1
                 <motion.div
@@ -560,23 +483,9 @@ const DisplayPage: React.FC = () => {
                   className="text-center"
                 >
                   <div className="relative overflow-hidden max-w-md mx-auto">
-                    {/* Prize Background */}
-                    {localState.selectedPrizeImage && (
-                      <div className="absolute inset-0 opacity-5">
-                        <img
-                          alt="Prize"
-                          className="w-full h-full object-cover rounded-3xl"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                          }}
-                        />
-                      </div>
-                    )}
-                    
                     <div className="relative z-10">
                       <div className="h-32 flex items-center justify-center mb-8">
-                        {!isSpinning && !isSlowingDown ? (
+                        {!isSpinning && !isSlowingDown && !showConvergedResult ? (
                           <div className="text-center">
                               <span className="text-9xl font-bold text-slate-600 block uppercase">
                                 Ready
@@ -584,50 +493,58 @@ const DisplayPage: React.FC = () => {
                           </div>
                         ) : (
                           <motion.div
-                            key={`${currentSingleName}-${hasConverged}`}
+                            key={`single-name-${currentSingleName}-${hasConverged}-${showConvergedResult}`}
                             initial={{ 
-                              scale: 0.8,
+                              y: -50,
                               opacity: 0,
-                              rotateX: 90
+                              scale: 0.8,
+                              filter: "blur(2px)"
                             }}
-                            animate={{ 
-                              scale: hasConverged ? 1.2 : 1,
+                            animate={{
+                              y: 0,
                               opacity: 1,
-                              rotateX: 0
+                              scale: (hasConverged || showConvergedResult) ? 1.3 : (isSlowingDown && slowdownProgress > 0.8 ? 1.1 : 1),
+                              filter: "blur(0px)"
                             }}
-                            transition={{ 
-                              duration: (isSlowingDown ? currentSpeed : BASE_SPEED) / 1000,
+                            exit={{
+                              y: 50,
+                              opacity: 0,
+                              scale: 0.8,
+                              filter: "blur(2px)"
+                            }}
+                            transition={{
+                              duration: showConvergedResult ? 0.8 : (isSlowingDown ? currentSpeed : BASE_SPEED) / 1000,
                               ease: "easeInOut"
                             }}
-                            className="text-center"
+                            className="text-center px-4"
                           >
-                            <div className={hasConverged ? "text-green-600" : "text-blue-800"}>
-                              <span className={`font-bold ${isSlowingDown ? 'text-6xl' : 'text-5xl'} ${hasConverged ? 'text-green-600' : ''}`}>
-                                {currentSingleName || '...'}
+                            <div className={` px-4 py-3 shadow-md ${
+                              (hasConverged || showConvergedResult)
+                                ? 'border-transparent bg-transparent shadow-transparent' 
+                                : isSlowingDown && slowdownProgress > 0.6 
+                                  ? 'border-transparent bg-transparent shadow-transparent'
+
+                                  : ' bg-transparent shadow-transparent'
+                            }`}>
+                              <span className={`text-6xl font-bold block ${
+                                (hasConverged || showConvergedResult)
+                                  ? 'text-green-600' 
+                                  : isSlowingDown && slowdownProgress > 0.8 
+                                    ? 'text-yellow-600'
+                                    : 'text-slate-800'
+                              }`}>
+                                {currentSingleName || (showConvergedResult ? localState.finalWinners?.[0]?.name : '') || '...'}
                               </span>
-                              {isSlowingDown && (
-                                <div className={`text-sm mt-2 ${hasConverged ? 'text-green-500' : 'text-slate-500'}`}>
-                                  {hasConverged ? '' : `Speed: ${currentSpeed}ms`}
+                              {/* show winner */}
+                              {showConvergedResult && (
+                                <div className="text-xs mt-1 text-green-500 font-semibold">
+                                  WINNER!
                                 </div>
                               )}
                             </div>
                           </motion.div>
                         )}
                       </div>
-
-                      {localState.selectedPrizeImage && (
-                        <div className="mt-8">
-                          <img
-                            src={localState.selectedPrizeImage}
-                            alt={localState.selectedPrizeName}
-                            className="w-30 h-30 object-cover rounded-2xl mx-auto opacity-60 shadow-lg"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      )}
                     </div>
                   </div>
                 </motion.div>
@@ -658,32 +575,18 @@ const DisplayPage: React.FC = () => {
                         className="relative"
                       >
                         {/* Slot Machine */}
-                        <div className={`bg-white rounded-xl p-3 shadow-xl border-2 relative overflow-hidden min-h-[300px] ${
-                          hasConverged ? 'border-green-300 bg-green-50' : 'border-slate-200'
+                        <div className={`bg-transparent rounded-xl p-3  border-2 relative overflow-hidden min-h-[300px] ${
+                          (hasConverged || showConvergedResult) ? 'border-transparent' : 'border-transparent'
                         }`}>
-                          {/* Prize Background */}
-                          {localState.selectedPrizeImage && (
-                            <div className="absolute inset-0 opacity-5">
-                              <img
-                                src={localState.selectedPrizeImage}
-                                alt="Prize"
-                                className="w-full h-full object-cover rounded-3xl"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.style.display = 'none';
-                                }}
-                              />
-                            </div>
-                          )}
                           
                           <div className="relative z-10 h-full flex flex-col">
                             {/* Main Display Area */}
                             <div className="flex-1 flex items-center justify-center relative">
                               <div className={`w-full h-32 bg-slate-50 rounded-xl border-2 overflow-hidden relative ${
-                                hasConverged ? 'border-green-300 bg-green-50' : 'border-slate-300'
+                                (hasConverged || showConvergedResult) ? 'border-green-300 bg-green-50' : 'border-slate-300'
                               }`}>
                                 {/* Show "Ready" state when not spinning */}
-                                {!isSpinning && !isSlowingDown ? (
+                                {!isSpinning && !isSlowingDown && !showConvergedResult ? (
                                   <div className="absolute inset-0 flex items-center justify-center">
                                     <div className="text-center">
                                       <div className="bg-slate-100 rounded-lg px-3 py-2 shadow-md border border-slate-300">
@@ -700,7 +603,7 @@ const DisplayPage: React.FC = () => {
                                   /* Rolling Name - with convergence highlighting */
                                   <div className="absolute inset-0 flex items-center justify-center">
                                     <motion.div
-                                      key={`name-${columnIndex}-${rollingNames[columnIndex]}-${hasConverged}`}
+                                      key={`name-${columnIndex}-${rollingNames[columnIndex]}-${hasConverged}-${showConvergedResult}`}
                                       initial={{ 
                                         y: -50, 
                                         opacity: 0, 
@@ -710,7 +613,7 @@ const DisplayPage: React.FC = () => {
                                       animate={{ 
                                         y: 0, 
                                         opacity: 1, 
-                                        scale: hasConverged ? 1.2 : (isSlowingDown && slowdownProgress > 0.8 ? 1.1 : 1),
+                                        scale: (hasConverged || showConvergedResult) ? 1.3 : (isSlowingDown && slowdownProgress > 0.8 ? 1.1 : 1),
                                         filter: "blur(0px)"
                                       }}
                                       exit={{ 
@@ -720,28 +623,34 @@ const DisplayPage: React.FC = () => {
                                         filter: "blur(2px)"
                                       }}
                                       transition={{ 
-                                        duration: (isSlowingDown ? currentSpeed : BASE_SPEED) / 1000,
+                                        duration: showConvergedResult ? 0.8 : (isSlowingDown ? currentSpeed : BASE_SPEED) / 1000,
                                         ease: "easeInOut"
                                       }}
                                       className="text-center px-1"
                                     >
                                       <div className={`rounded-lg px-2 py-2 shadow-md border ${
-                                        hasConverged 
+                                        (hasConverged || showConvergedResult)
                                           ? 'border-green-400 bg-green-100 shadow-green-200' 
                                           : isSlowingDown && slowdownProgress > 0.6 
                                             ? 'border-yellow-200 bg-yellow-50' 
                                             : 'border-yellow-200 bg-white'
                                       }`}>
-                                        <span className={`text-sm font-bold block  ${
-                                          hasConverged 
+                                        <span className={`text-sm font-bold block ${
+                                          (hasConverged || showConvergedResult)
                                             ? 'text-green-700' 
                                             : isSlowingDown && slowdownProgress > 0.8 
                                               ? 'text-yellow-600' 
                                               : 'text-slate-800'
                                         }`}>
-                                          {rollingNames[columnIndex] || '...'}
+                                          {rollingNames[columnIndex] || (showConvergedResult ? localState.finalWinners?.[columnIndex]?.name : '') || '...'}
                                         </span>
-                                        {isSlowingDown && slowdownProgress > 0.7 && (
+                                        {/* show winner */}
+                                        {showConvergedResult && (
+                                          <div className="text-xs mt-1 text-green-500 font-semibold">
+                                            WINNER!
+                                          </div>
+                                        )}
+                                        {isSlowingDown && slowdownProgress > 0.7 && !showConvergedResult && (
                                           <div className={`text-xs mt-1 ${
                                             hasConverged ? 'text-green-500' : 'text-slate-400'
                                           }`}>
@@ -754,38 +663,32 @@ const DisplayPage: React.FC = () => {
                                 )}
                               </div>
                             </div>
-                            
-                            {/* Prize Image at Bottom */}
-                            {localState.selectedPrizeImage && (
-                              <div className="mt-3 text-center">
-                                <img
-                                  src={localState.selectedPrizeImage}
-                                  alt={localState.selectedPrizeName}
-                                  className="w-10 h-10 object-cover rounded-lg mx-auto opacity-60 shadow-md"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                  }}
-                                />
-                              </div>
-                            )}
                           </div>
                         </div>
                       </motion.div>
                     ))}
                   </div>
                   
-                  <motion.div
-                    animate={{ opacity: [0.7, 1, 0.7] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className="text-center mt-8"
-                  >
-                    {!isSpinning && !isSlowingDown && (
-                      <p className="text-2xl text-slate-600 font-semibold">
-                       
-                      </p>
-                    )}
-                  </motion.div>
+                  {showConvergedResult && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 1, duration: 0.8 }}
+                      className="text-center mt-8"
+                    >
+               
+                    </motion.div>
+                  )}
+                  
+                  {!isSpinning && !isSlowingDown && !showConvergedResult && (
+                    <motion.div
+                      animate={{ opacity: [0.7, 1, 0.7] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="text-center mt-8"
+                    >
+                      
+                    </motion.div>
+                  )}
                 </motion.div>
               )
             ) : (
@@ -806,12 +709,8 @@ const DisplayPage: React.FC = () => {
                     ease: "easeInOut"
                   }}
                 >
-                  <Trophy className="w-40 h-40 text-yellow-500 mx-auto mb-12" />
-                </motion.div>
                 
-                <h2 className="text-6xl font-bold text-slate-800 mb-8">
-                  Ready to Draw Winners
-                </h2>
+                </motion.div>
                 
                 <motion.p
                   initial={{ opacity: 0 }}
