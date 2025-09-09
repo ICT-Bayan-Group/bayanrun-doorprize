@@ -1,7 +1,9 @@
 import Papa from 'papaparse';
 import { Participant } from '../types';
 
-export const importFromFile = (file: File): Promise<string[]> => {
+type ImportMode = 'nama' | 'bib';
+
+export const importFromFile = (file: File, mode: ImportMode = 'nama'): Promise<string[]> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
@@ -23,30 +25,51 @@ export const importFromFile = (file: File): Promise<string[]> => {
                   // Get the headers/column names
                   const headers = Object.keys(data[0]);
                   
-                  // Find the name column (case insensitive)
-                  const nameColumn = headers.find(header => 
-                    header.toLowerCase().includes('nama') || 
-                    header.toLowerCase().includes('name') ||
-                    header.toLowerCase() === 'nama' ||
-                    header.toLowerCase() === 'name'
-                  );
+                  let targetColumn: string | undefined;
                   
-                  if (nameColumn) {
-                    // Extract names from the identified column
+                  if (mode === 'nama') {
+                    // Find the name column (case insensitive)
+                    targetColumn = headers.find(header => 
+                      header.toLowerCase().includes('nama') || 
+                      header.toLowerCase().includes('name') ||
+                      header.toLowerCase() === 'nama' ||
+                      header.toLowerCase() === 'name'
+                    );
+                  } else if (mode === 'bib') {
+                    // Find the BIB column (case insensitive)
+                    targetColumn = headers.find(header => 
+                      header.toLowerCase().includes('bib') || 
+                      header.toLowerCase() === 'bib' ||
+                      header.toLowerCase().includes('nomor') ||
+                      header.toLowerCase().includes('number')
+                    );
+                  }
+                  
+                  if (targetColumn) {
+                    // Extract data from the identified column
                     data.forEach(row => {
-                      const name = String(row[nameColumn] || '').trim();
-                      if (name.length > 0) {
-                        names.push(name);
+                      const value = String(row[targetColumn!] || '').trim();
+                      if (value.length > 0) {
+                        // For BIB mode, format as "BIB {number}" if it's just a number
+                        if (mode === 'bib' && /^\d+$/.test(value)) {
+                          names.push(`BIB ${value.padStart(4, '0')}`);
+                        } else {
+                          names.push(value);
+                        }
                       }
                     });
                   } else {
-                    // If no name column found, try to use the first column
+                    // If target column not found, try to use the first column as fallback
                     const firstColumn = headers[0];
                     if (firstColumn) {
                       data.forEach(row => {
-                        const name = String(row[firstColumn] || '').trim();
-                        if (name.length > 0) {
-                          names.push(name);
+                        const value = String(row[firstColumn] || '').trim();
+                        if (value.length > 0) {
+                          if (mode === 'bib' && /^\d+$/.test(value)) {
+                            names.push(`BIB ${value.padStart(4, '0')}`);
+                          } else {
+                            names.push(value);
+                          }
                         }
                       });
                     }
@@ -54,9 +77,12 @@ export const importFromFile = (file: File): Promise<string[]> => {
                 }
                 
                 if (names.length === 0) {
-                  reject(new Error('No valid names found in the CSV file. Make sure you have a column named "nama" or "name".'));
+                  const expectedColumn = mode === 'nama' ? '"nama" atau "name"' : '"bib" atau "nomor"';
+                  reject(new Error(`Tidak ditemukan data yang valid dalam file CSV. Pastikan Anda memiliki kolom ${expectedColumn}.`));
                 } else {
-                  resolve(names);
+                  // Remove duplicates
+                  const uniqueNames = [...new Set(names)];
+                  resolve(uniqueNames);
                 }
               } catch (error) {
                 reject(new Error('Error parsing CSV data: ' + (error as Error).message));
@@ -67,24 +93,36 @@ export const importFromFile = (file: File): Promise<string[]> => {
             }
           });
         } else {
-          // Handle .txt files - assume each line is a name
-          const names = content
+          // Handle .txt files - assume each line is a name or BIB
+          const lines = content
             .split('\n')
-            .map(name => name.trim())
-            .filter(name => name.length > 0);
+            .map(line => line.trim())
+            .filter(line => line.length > 0);
+          
+          const names: string[] = [];
+          
+          lines.forEach(line => {
+            if (mode === 'bib' && /^\d+$/.test(line)) {
+              names.push(`BIB ${line.padStart(4, '0')}`);
+            } else {
+              names.push(line);
+            }
+          });
             
           if (names.length === 0) {
-            reject(new Error('No valid names found in the text file.'));
+            reject(new Error('Tidak ditemukan data yang valid dalam file teks.'));
           } else {
-            resolve(names);
+            // Remove duplicates
+            const uniqueNames = [...new Set(names)];
+            resolve(uniqueNames);
           }
         }
       } catch (error) {
-        reject(new Error('Failed to process file: ' + (error as Error).message));
+        reject(new Error('Gagal memproses file: ' + (error as Error).message));
       }
     };
     
-    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.onerror = () => reject(new Error('Gagal membaca file'));
     reader.readAsText(file, 'UTF-8'); // Specify encoding to handle special characters
   });
 };
