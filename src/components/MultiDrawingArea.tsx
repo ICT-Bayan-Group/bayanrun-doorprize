@@ -402,7 +402,6 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         </div>
       </div>
 
-      {/* Pre-determined Winners Status (for debugging) */}
       {predeterminedWinners.length > 0 && (
         <div className="mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
           <div className="flex items-center gap-3">

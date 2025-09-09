@@ -4,6 +4,8 @@ import { db } from '../config/firebase';
 import { Winner, Participant } from '../types';
 
 interface DrawingState {
+  shouldStartSlowdown: any;
+  predeterminedWinners: any;
   isDrawing: boolean;
   currentWinners: Winner[];
   showConfetti: boolean;
