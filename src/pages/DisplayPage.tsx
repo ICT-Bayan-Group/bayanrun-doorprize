@@ -442,25 +442,16 @@ const DisplayPage: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`bg-white bg-opacity-90 rounded-full px-12 py-6 shadow-lg border-4 ${
-                  hasConverged ? 'border-yellow-300 bg-yellow-50' : 'border-blue-300'
+                className={`bg-transparent bg-opacity-90 rounded-full px-12 py-6 shadow-lg border-4 ${
+                  hasConverged ? 'border-black bg-transparent' : 'border-transparent'
                 }`}
               >
                 <div className="flex items-center gap-4">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: hasConverged ? 0.5 : 2, repeat: Infinity, ease: "linear" }}
-                    className={`w-8 h-8 border-4 ${
-                      hasConverged ? 'border-yellow-600 border-t-transparent' : 'border-blue-600 border-t-transparent'
-                    } rounded-full`}
-                  />
-                  <span className={`text-3xl font-bold ${hasConverged ? 'text-green-800' : 'text-slate-800'}`}>
-                    {hasConverged ? 'Locked!' : `Melambat... ${Math.round(slowdownProgress * 100)}%`}
-                  </span>
+                  
                 </div>
                 <div className="w-full bg-slate-200 rounded-full h-4 mt-4">
                   <motion.div 
-                    className={`h-4 rounded-full ${hasConverged ? 'bg-yellow-600' : 'bg-blue-600'}`}
+                    className={`h-4 rounded-full ${hasConverged ? 'bg-black' : 'bg-blue-600'}`}
                     initial={{ width: 0 }}
                     animate={{ width: `${slowdownProgress * 100}%` }}
                     transition={{ duration: 0.1 }}
@@ -528,10 +519,10 @@ const DisplayPage: React.FC = () => {
                             }`}>
                               <span className={`font-bold whitespace-nowrap overflow-visible max-w-full text-4xl md:text-6xl ${
                                 (hasConverged || showConvergedResult)
-                                  ? 'text-green-600' 
+                                  ? 'text-black' 
                                   : isSlowingDown && slowdownProgress > 0.
-                                    ? 'text-yellow-600'
-                                    : 'text-slate-800'
+                                    ? 'text-black'
+                                    : 'text-black'
                               }`}>
                                 {currentSingleName || (showConvergedResult ? localState.finalWinners?.[0]?.name : '') || '...'}
                               </span>
@@ -582,7 +573,7 @@ const DisplayPage: React.FC = () => {
                           <div className="relative z-10 h-full flex flex-col">
                             {/* Main Display Area */}
                             <div className="flex-1 flex items-center justify-center relative">
-                              <div className={`w-full min-h-[450px] bg-slate-50 rounded-xl border-5 overflow-hidden relative ${
+                              <div className={`w-full min-h-[450px] bg-transparent rounded-xl border-5 overflow-hidden relative ${
                                 (hasConverged || showConvergedResult) ? 'border-green-300 bg-green-50' : 'border-slate-300'
                               }`}>
                                 {/* Show "Ready" state when not spinning */}
@@ -637,10 +628,10 @@ const DisplayPage: React.FC = () => {
                                       }`}>
                                         <span className={`text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold block break-words leading-tight ${
                                           (hasConverged || showConvergedResult)
-                                            ? 'text-green-700' 
+                                            ? 'text-black' 
                                             : isSlowingDown && slowdownProgress > 0.8 
-                                              ? 'text-yellow-600' 
-                                              : 'text-slate-800'
+                                              ? 'text-black' 
+                                              : 'text-black'
                                         }`}>
                                           {rollingNames[columnIndex] || (showConvergedResult ? localState.finalWinners?.[columnIndex]?.name : '') || '...'}
                                         </span>
