@@ -442,7 +442,7 @@ const DisplayPage: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`bg-white bg-opacity-90 rounded-full px-6 py-3 shadow-lg border ${
+                className={`bg-white bg-opacity-90 rounded-full px-8 py-4 shadow-lg border ${
                   hasConverged ? 'border-yellow-300 bg-yellow-50' : 'border-blue-300'
                 }`}
               >
@@ -450,17 +450,17 @@ const DisplayPage: React.FC = () => {
                   <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: hasConverged ? 0.5 : 2, repeat: Infinity, ease: "linear" }}
-                    className={`w-5 h-5 border-2 ${
+                    className={`w-6 h-6 border-2 ${
                       hasConverged ? 'border-yellow-600 border-t-transparent' : 'border-blue-600 border-t-transparent'
                     } rounded-full`}
                   />
-                  <span className={`font-medium ${hasConverged ? 'text-green-800' : 'text-slate-800'}`}>
+                  <span className={`text-xl font-bold ${hasConverged ? 'text-green-800' : 'text-slate-800'}`}>
                     {hasConverged ? 'Locked!' : `Melambat... ${Math.round(slowdownProgress * 100)}%`}
                   </span>
                 </div>
-                <div className="w-full bg-slate-200 rounded-full h-1 mt-2">
+                <div className="w-full bg-slate-200 rounded-full h-2 mt-3">
                   <motion.div 
-                    className={`h-1 rounded-full ${hasConverged ? 'bg-yellow-600' : 'bg-blue-600'}`}
+                    className={`h-2 rounded-full ${hasConverged ? 'bg-yellow-600' : 'bg-blue-600'}`}
                     initial={{ width: 0 }}
                     animate={{ width: `${slowdownProgress * 100}%` }}
                     transition={{ duration: 0.1 }}
@@ -482,12 +482,12 @@ const DisplayPage: React.FC = () => {
                   transition={{ duration: 0.6, ease: "easeOut" }}
                   className="text-center"
                 >
-                  <div className="relative overflow-hidden max-w-md mx-auto">
+                  <div className="relative overflow-hidden max-w-4xl mx-auto">
                     <div className="relative z-10">
-                      <div className="h-32 flex items-center justify-center mb-8">
+                      <div className="h-40 flex items-center justify-center mb-8">
                         {!isSpinning && !isSlowingDown && !showConvergedResult ? (
                           <div className="text-center">
-                              <span className="text-9xl font-bold text-slate-600 block uppercase">
+                              <span className="text-[12rem] font-bold text-slate-600 block uppercase">
                                 Ready
                               </span>
                           </div>
@@ -516,9 +516,9 @@ const DisplayPage: React.FC = () => {
                               duration: showConvergedResult ? 0.8 : (isSlowingDown ? currentSpeed : BASE_SPEED) / 1000,
                               ease: "easeInOut"
                             }}
-                            className="text-center px-4"
+                            className="text-center px-6"
                           >
-                            <div className={` px-4 py-3 shadow-md ${
+                            <div className={` px-6 py-4 shadow-md ${
                               (hasConverged || showConvergedResult)
                                 ? 'border-transparent bg-transparent shadow-transparent' 
                                 : isSlowingDown && slowdownProgress > 0.6 
@@ -526,7 +526,7 @@ const DisplayPage: React.FC = () => {
 
                                   : ' bg-transparent shadow-transparent'
                             }`}>
-                              <span className={`text-6xl font-bold block ${
+                              <span className={`text-[8rem] font-bold block ${
                                 (hasConverged || showConvergedResult)
                                   ? 'text-green-600' 
                                   : isSlowingDown && slowdownProgress > 0.8 
@@ -537,7 +537,7 @@ const DisplayPage: React.FC = () => {
                               </span>
                               {/* show winner */}
                               {showConvergedResult && (
-                                <div className="text-xs mt-1 text-green-500 font-semibold">
+                                <div className="text-2xl mt-2 text-green-500 font-bold">
                                   WINNER!
                                 </div>
                               )}
@@ -557,7 +557,7 @@ const DisplayPage: React.FC = () => {
                   className="w-full px-4"
                 >
                   <div 
-                    className="gap-3 mx-auto"
+                    className="gap-4 mx-auto"
                     style={{
                       display: 'grid',
                       gridTemplateColumns: drawCount <= 10 ? 
@@ -575,14 +575,14 @@ const DisplayPage: React.FC = () => {
                         className="relative"
                       >
                         {/* Slot Machine */}
-                        <div className={`bg-transparent rounded-xl p-3  border-2 relative overflow-hidden min-h-[300px] ${
+                        <div className={`bg-transparent rounded-xl p-4  border-2 relative overflow-hidden min-h-[400px] ${
                           (hasConverged || showConvergedResult) ? 'border-transparent' : 'border-transparent'
                         }`}>
                           
                           <div className="relative z-10 h-full flex flex-col">
                             {/* Main Display Area */}
                             <div className="flex-1 flex items-center justify-center relative">
-                              <div className={`w-full h-32 bg-slate-50 rounded-xl border-2 overflow-hidden relative ${
+                              <div className={`w-full min-h-[120px] bg-slate-50 rounded-xl border-2 overflow-hidden relative ${
                                 (hasConverged || showConvergedResult) ? 'border-green-300 bg-green-50' : 'border-slate-300'
                               }`}>
                                 {/* Show "Ready" state when not spinning */}
@@ -590,10 +590,10 @@ const DisplayPage: React.FC = () => {
                                   <div className="absolute inset-0 flex items-center justify-center">
                                     <div className="text-center">
                                       <div className="bg-slate-100 rounded-lg px-3 py-2 shadow-md border border-slate-300">
-                                        <span className="text-sm font-bold text-slate-600 block">
+                                        <span className="text-sm md:text-base lg:text-lg font-bold text-slate-600 block">
                                           Ready
                                         </span>
-                                        <span className="text-xs text-slate-500 block">
+                                        <span className="text-xs md:text-sm text-slate-500 block">
                                           Start
                                         </span>
                                       </div>
@@ -601,7 +601,7 @@ const DisplayPage: React.FC = () => {
                                   </div>
                                 ) : (
                                   /* Rolling Name - with convergence highlighting */
-                                  <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="absolute inset-0 flex items-center justify-center p-1">
                                     <motion.div
                                       key={`name-${columnIndex}-${rollingNames[columnIndex]}-${hasConverged}-${showConvergedResult}`}
                                       initial={{ 
@@ -613,7 +613,7 @@ const DisplayPage: React.FC = () => {
                                       animate={{ 
                                         y: 0, 
                                         opacity: 1, 
-                                        scale: (hasConverged || showConvergedResult) ? 1.3 : (isSlowingDown && slowdownProgress > 0.8 ? 1.1 : 1),
+                                        scale: (hasConverged || showConvergedResult) ? 1.2 : (isSlowingDown && slowdownProgress > 0.8 ? 1.1 : 1),
                                         filter: "blur(0px)"
                                       }}
                                       exit={{ 
@@ -626,7 +626,7 @@ const DisplayPage: React.FC = () => {
                                         duration: showConvergedResult ? 0.8 : (isSlowingDown ? currentSpeed : BASE_SPEED) / 1000,
                                         ease: "easeInOut"
                                       }}
-                                      className="text-center px-1"
+                                      className="text-center w-full"
                                     >
                                       <div className={`rounded-lg px-2 py-2 shadow-md border ${
                                         (hasConverged || showConvergedResult)
@@ -635,7 +635,7 @@ const DisplayPage: React.FC = () => {
                                             ? 'border-yellow-200 bg-yellow-50' 
                                             : 'border-yellow-200 bg-white'
                                       }`}>
-                                        <span className={`text-sm font-bold block ${
+                                        <span className={`text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-bold block break-words leading-tight ${
                                           (hasConverged || showConvergedResult)
                                             ? 'text-green-700' 
                                             : isSlowingDown && slowdownProgress > 0.8 
@@ -646,7 +646,7 @@ const DisplayPage: React.FC = () => {
                                         </span>
                                         {/* show winner */}
                                         {showConvergedResult && (
-                                          <div className="text-xs mt-1 text-green-500 font-semibold">
+                                          <div className="text-xs sm:text-sm mt-1 text-green-500 font-bold">
                                             WINNER!
                                           </div>
                                         )}
@@ -712,14 +712,6 @@ const DisplayPage: React.FC = () => {
                 
                 </motion.div>
                 
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
-                  className="text-2xl text-slate-600"
-                >
-                  {prizeQuota === 1 ? 'Single Winner Draw' : `Drawing ${prizeQuota} Winners`}
-                </motion.p>
               </motion.div>
             )}
           </div>

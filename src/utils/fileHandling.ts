@@ -1,9 +1,7 @@
 import Papa from 'papaparse';
 import { Participant } from '../types';
 
-type ImportMode = 'nama' | 'bib';
-
-export const importFromFile = (file: File, mode: ImportMode = 'nama'): Promise<string[]> => {
+export const importFromFile = (file: File): Promise<string[]> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
@@ -13,76 +11,92 @@ export const importFromFile = (file: File, mode: ImportMode = 'nama'): Promise<s
         
         if (file.name.endsWith('.csv')) {
           Papa.parse(content, {
-            header: true, // Parse with headers to get column names
+            header: true,
             skipEmptyLines: true,
-            dynamicTyping: false, // Keep everything as strings
+            dynamicTyping: false,
             complete: (results) => {
               try {
                 const data = results.data as any[];
-                const names: string[] = [];
+                const participants: string[] = [];
                 
                 if (data.length > 0) {
                   // Get the headers/column names
                   const headers = Object.keys(data[0]);
                   
-                  let targetColumn: string | undefined;
+                  // Find name column (case insensitive)
+                  const nameColumn = headers.find(header => 
+                    header.toLowerCase().includes('nama') || 
+                    header.toLowerCase().includes('name') ||
+                    header.toLowerCase() === 'nama' ||
+                    header.toLowerCase() === 'name'
+                  );
                   
-                  if (mode === 'nama') {
-                    // Find the name column (case insensitive)
-                    targetColumn = headers.find(header => 
-                      header.toLowerCase().includes('nama') || 
-                      header.toLowerCase().includes('name') ||
-                      header.toLowerCase() === 'nama' ||
-                      header.toLowerCase() === 'name'
-                    );
-                  } else if (mode === 'bib') {
-                    // Find the BIB column (case insensitive)
-                    targetColumn = headers.find(header => 
-                      header.toLowerCase().includes('bib') || 
-                      header.toLowerCase() === 'bib' ||
-                      header.toLowerCase().includes('nomor') ||
-                      header.toLowerCase().includes('number')
-                    );
-                  }
+                  // Find BIB column (case insensitive)
+                  const bibColumn = headers.find(header => 
+                    header.toLowerCase().includes('bib') || 
+                    header.toLowerCase() === 'bib' ||
+                    header.toLowerCase().includes('nomor') ||
+                    header.toLowerCase().includes('number')
+                  );
                   
-                  if (targetColumn) {
-                    // Extract data from the identified column
-                    data.forEach(row => {
-                      const value = String(row[targetColumn!] || '').trim();
-                      if (value.length > 0) {
-                        // For BIB mode, format as "BIB {number}" if it's just a number
-                        if (mode === 'bib' && /^\d+$/.test(value)) {
-                          names.push(`BIB ${value.padStart(4, '0')}`);
+                  data.forEach(row => {
+                    let participantName = '';
+                    let bibNumber = '';
+                    
+                    // Get name
+                    if (nameColumn) {
+                      const nameValue = String(row[nameColumn] || '').trim();
+                      if (nameValue.length > 0) {
+                        participantName = nameValue;
+                      }
+                    }
+                    
+                    // Get BIB
+                    if (bibColumn) {
+                      const bibValue = String(row[bibColumn] || '').trim();
+                      if (bibValue.length > 0) {
+                        // Format BIB number if it's numeric
+                        if (/^\d+$/.test(bibValue)) {
+                          bibNumber = `${bibValue.padStart(4, '0')}`;
                         } else {
-                          names.push(value);
+                          bibNumber = bibValue;
+                        }
+                      }
+                    }
+                    
+                    // Combine name and BIB
+                    if (participantName && bibNumber) {
+                      participants.push(`${participantName} (${bibNumber})`);
+                    } else if (participantName) {
+                      participants.push(participantName);
+                    } else if (bibNumber) {
+                      participants.push(bibNumber);
+                    }
+                  });
+                  
+                  // If no name or BIB columns found, try first column as fallback
+                  if (participants.length === 0 && headers.length > 0) {
+                    const firstColumn = headers[0];
+                    data.forEach(row => {
+                      const value = String(row[firstColumn] || '').trim();
+                      if (value.length > 0) {
+                        // Check if it's a number (treat as BIB)
+                        if (/^\d+$/.test(value)) {
+                          participants.push(`${value.padStart(4, '0')}`);
+                        } else {
+                          participants.push(value);
                         }
                       }
                     });
-                  } else {
-                    // If target column not found, try to use the first column as fallback
-                    const firstColumn = headers[0];
-                    if (firstColumn) {
-                      data.forEach(row => {
-                        const value = String(row[firstColumn] || '').trim();
-                        if (value.length > 0) {
-                          if (mode === 'bib' && /^\d+$/.test(value)) {
-                            names.push(`BIB ${value.padStart(4, '0')}`);
-                          } else {
-                            names.push(value);
-                          }
-                        }
-                      });
-                    }
                   }
                 }
                 
-                if (names.length === 0) {
-                  const expectedColumn = mode === 'nama' ? '"nama" atau "name"' : '"bib" atau "nomor"';
-                  reject(new Error(`Tidak ditemukan data yang valid dalam file CSV. Pastikan Anda memiliki kolom ${expectedColumn}.`));
+                if (participants.length === 0) {
+                  reject(new Error('Tidak ditemukan data yang valid dalam file CSV. Pastikan file memiliki kolom "nama"/"name" atau "bib"/"nomor".'));
                 } else {
                   // Remove duplicates
-                  const uniqueNames = [...new Set(names)];
-                  resolve(uniqueNames);
+                  const uniqueParticipants = [...new Set(participants)];
+                  resolve(uniqueParticipants);
                 }
               } catch (error) {
                 reject(new Error('Error parsing CSV data: ' + (error as Error).message));
@@ -99,22 +113,23 @@ export const importFromFile = (file: File, mode: ImportMode = 'nama'): Promise<s
             .map(line => line.trim())
             .filter(line => line.length > 0);
           
-          const names: string[] = [];
+          const participants: string[] = [];
           
           lines.forEach(line => {
-            if (mode === 'bib' && /^\d+$/.test(line)) {
-              names.push(`BIB ${line.padStart(4, '0')}`);
+            // Check if line is purely numeric (treat as BIB)
+            if (/^\d+$/.test(line)) {
+              participants.push(`BIB ${line.padStart(4, '0')}`);
             } else {
-              names.push(line);
+              participants.push(line);
             }
           });
             
-          if (names.length === 0) {
+          if (participants.length === 0) {
             reject(new Error('Tidak ditemukan data yang valid dalam file teks.'));
           } else {
             // Remove duplicates
-            const uniqueNames = [...new Set(names)];
-            resolve(uniqueNames);
+            const uniqueParticipants = [...new Set(participants)];
+            resolve(uniqueParticipants);
           }
         }
       } catch (error) {
@@ -123,7 +138,7 @@ export const importFromFile = (file: File, mode: ImportMode = 'nama'): Promise<s
     };
     
     reader.onerror = () => reject(new Error('Gagal membaca file'));
-    reader.readAsText(file, 'UTF-8'); // Specify encoding to handle special characters
+    reader.readAsText(file, 'UTF-8');
   });
 };
 
