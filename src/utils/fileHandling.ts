@@ -102,7 +102,7 @@ export const importFromFile = (file: File): Promise<string[]> => {
                 reject(new Error('Error parsing CSV data: ' + (error as Error).message));
               }
             },
-            error: (error) => {
+            error: (error: { message: string; }) => {
               reject(new Error('CSV parsing error: ' + error.message));
             }
           });
