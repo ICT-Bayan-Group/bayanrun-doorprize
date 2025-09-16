@@ -93,7 +93,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     }
   }, [participantsHook]);
 
-  // FIXED: Update startDrawing - simplified since winners are now generated in MultiDrawingArea
+  // Start drawing - simplified since winners are now generated in MultiDrawingArea
   const startDrawing = useCallback(() => {
     if (participants.length === 0 || isDrawing) return;
     
@@ -120,7 +120,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     });
   }, [participants, isDrawing, selectedPrize, updateDrawingState]);
 
-  // FIXED: Update stopDrawing - now handles pre-determined winners from MultiDrawingArea
+  // Stop drawing - handles pre-determined winners from MultiDrawingArea
   const stopDrawing = useCallback((finalWinners?: Winner[]) => {
     if (!isDrawing) return;
 
@@ -153,13 +153,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     // Set current winners
     setCurrentWinners(newWinners);
     
-    // Show confetti
+    // Show confetti - NO AUTO-HIDE, controlled by admin
     setShowConfetti(true);
-    setTimeout(() => {
-      setShowConfetti(false);
-      // Update Firebase state to hide confetti
-      updateDrawingState({ showConfetti: false });
-    }, 8000);
     
     // Play sound effect
     if (settings.soundEnabled) {
@@ -172,12 +167,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     }
     
     setIsDrawing(false);
-  }, [isDrawing, selectedPrize, settings, winnersHook, prizesHook, updateDrawingState, setSelectedPrizeId]);
+  }, [isDrawing, selectedPrize, settings, winnersHook, prizesHook, setSelectedPrizeId]);
 
+  // Clear current winners - MANUAL CONTROL
   const clearCurrentWinners = useCallback(() => {
-    console.log('Admin: Clearing current winners');
+    console.log('Admin: Manually clearing current winners');
     
     setCurrentWinners([]);
+    setShowConfetti(false); // Manual confetti control
     
     updateDrawingState({ 
       currentWinners: [], 
@@ -189,6 +186,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       shouldStartSpinning: false
     });
   }, [updateDrawingState]);
+
+  // NEW: Manual confetti control
+  const toggleConfetti = useCallback(() => {
+    const newShowConfetti = !showConfetti;
+    setShowConfetti(newShowConfetti);
+    updateDrawingState({ showConfetti: newShowConfetti });
+    console.log('Admin: Manual confetti toggle:', newShowConfetti);
+  }, [showConfetti, updateDrawingState]);
 
   // Prize management functions
   const addPrize = useCallback((prizeData: Omit<Prize, 'id' | 'createdAt'>) => {
@@ -323,7 +328,37 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
           </div>
         </div>
 
-        {/* NEW: Natural Slowdown Status Indicator */}
+        {/* NEW: Manual Control Panel */}
+        {currentWinners.length > 0 && (
+          <div className="mb-6 p-4 bg-green-100 border border-green-300 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-green-800">Kontrol Manual Display</h3>
+                <p className="text-green-600">Tampilan pemenang saat ini aktif - kontrol penuh ada di tangan admin</p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={toggleConfetti}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                    showConfetti
+                      ? 'bg-yellow-600 text-white hover:bg-yellow-700'
+                      : 'bg-gray-600 text-white hover:bg-gray-700'
+                  }`}
+                >
+                  {showConfetti ? 'Stop Confetti' : 'Start Confetti'}
+                </button>
+                <button
+                  onClick={clearCurrentWinners}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
+                >
+                  Clear Display
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Slowdown Status Indicator */}
         {drawingState.shouldStartSlowdown && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -345,7 +380,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
             </div>
           </motion.div>
         )}
-
 
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
           {/* Left Column - Participants */}
