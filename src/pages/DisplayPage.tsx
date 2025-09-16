@@ -20,6 +20,48 @@ interface DrawingState {
   shouldStartSlowdown?: boolean;
 }
 
+// Function untuk menentukan layout berdasarkan jumlah slot
+const getLayoutConfig = (drawCount: number) => {
+  if (drawCount <= 5) {
+    return { rows: 1, cols: drawCount, height: 'min-h-[450px]', textSize: 'text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl', readyTextSize: 'text-lg md:text-xl lg:text-2xl', winnerTextSize: 'text-base sm:text-lg' };
+  } else if (drawCount <= 10) {
+    return { rows: 2, cols: 5, height: 'min-h-[300px]', textSize: 'text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl', readyTextSize: 'text-lg md:text-xl lg:text-2xl', winnerTextSize: 'text-base sm:text-lg' };
+  } else if (drawCount <= 15) {
+    return { rows: 3, cols: 5, height: 'min-h-[250px]', textSize: 'text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl', readyTextSize: 'text-xl md:text-2xl lg:text-3xl', winnerTextSize: 'text-base sm:text-lg' };
+  } else if (drawCount <= 20) {
+    return { rows: 4, cols: 5, height: 'min-h-[200px]', textSize: 'text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl', readyTextSize: 'text-lg md:text-xl lg:text-2xl', winnerTextSize: 'text-base sm:text-lg' };
+  } else if (drawCount <= 25) {
+    return { rows: 5, cols: 5, height: 'min-h-[180px]', textSize: 'text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl', readyTextSize: 'text-lg md:text-xl lg:text-2xl', winnerTextSize: 'text-sm sm:text-base' };
+  } else if (drawCount <= 30) {
+    return { rows: 6, cols: 5, height: 'min-h-[160px]', textSize: 'text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl', readyTextSize: 'text-base md:text-lg lg:text-xl', winnerTextSize: 'text-sm sm:text-base' };
+  } else {
+    return { rows: Math.ceil(drawCount / 6), cols: 6, height: 'min-h-[140px]', textSize: 'text-sm sm:text-base md:text-lg lg:text-xl', readyTextSize: 'text-base md:text-lg', winnerTextSize: 'text-xs sm:text-sm' };
+  }
+};
+
+// Function untuk membuat grid baris
+const createGridRows = (drawCount: number, layoutConfig: { rows: any; cols: any; height?: string; textSize?: string; readyTextSize?: string; winnerTextSize?: string; }) => {
+  const { rows, cols } = layoutConfig;
+  const gridRows = [];
+  
+  for (let row = 0; row < rows; row++) {
+    const startIndex = row * cols;
+    const endIndex = Math.min(startIndex + cols, drawCount);
+    const slotsInThisRow = endIndex - startIndex;
+    
+    if (slotsInThisRow > 0) {
+      gridRows.push({
+        startIndex,
+        endIndex,
+        slotsInThisRow,
+        isLastRow: row === rows - 1
+      });
+    }
+  }
+  
+  return gridRows;
+};
+
 const DisplayPage: React.FC = () => {
   // Firebase hooks
   const settingsHook = useFirestore<AppSettings & { id: string }>('settings');
@@ -207,13 +249,12 @@ const DisplayPage: React.FC = () => {
               <img
                 src={localState.selectedPrizeImage}
                 alt="Prize Background"
-                className="w-3/4 h-3/4 object-contain opacity-100 mx-auto my-32"
+                className="w-3/4 h-3/4 object-contain mx-auto my-32"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.style.display = 'none';
                 }}
               />
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-300/60 to-red-300/60"></div>
             </div>
           )}
 
@@ -262,13 +303,13 @@ const DisplayPage: React.FC = () => {
                                 : 'bg-transparent shadow-transparent'
                             }`}>
                               <span className={`font-bold whitespace-nowrap overflow-visible max-w-full text-4xl md:text-6xl ${
-                                showFinalResults ? 'text-black' : 'text-black'
+                                showFinalResults ? 'text-white' : 'text-white'
                               }`}>
                                 {currentSingleName || (showFinalResults ? localState.finalWinners?.[0]?.name : '') || '...'}
                               </span>
                               {showFinalResults && (
-                                <div className="text-6xl mt-4 text-green-500 font-bold">
-                                  WINNER!
+                                <div className="text-6xl mt-4 text-green-400 font-bold">
+                                  PEMENANG!
                                 </div>
                               )}
                             </div>
@@ -279,76 +320,87 @@ const DisplayPage: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                // Multi Slot Machines for quota > 1
+                // Multi Slot Machines untuk semua ukuran (5-30+ slot)
                 <div className="w-full px-6">
-                  <div 
-                    className="gap-6 mx-auto"
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: drawCount <= 10 ? 
-                        `repeat(${drawCount}, minmax(0, 1fr))` : 
-                        'repeat(10, minmax(0, 1fr))',
-                      maxWidth: '100%'
-                    }}
-                  >
-                    {Array.from({ length: drawCount }).map((_, columnIndex) => (
-                      <div key={columnIndex} className="relative">
-                        {/* Slot Machine */}
-                        <div className="border-transparent">
-                          <div className="relative z-10 h-full flex flex-col">
-                            {/* Main Display Area */}
-                            <div className="flex-1 flex items-center justify-center relative">
-                              <div className={`w-full min-h-[450px] bg-transparent rounded-xl border-5 overflow-hidden relative ${
-                                showFinalResults ? 'border-green-300 bg-green-50' : 'border-slate-300'
-                              }`}>
-                                {/* Show "Ready" state when not spinning */}
-                                {!isSpinning && !showFinalResults ? (
-                                  <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="text-center">
-                                      <div className="bg-slate-100 rounded-lg px-6 py-4 shadow-md border-2 border-slate-300">
-                                        <span className="text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-slate-600 block">
-                                          Ready
-                                        </span>
-                                        <span className="text-lg md:text-xl text-slate-500 block">
-                                          Start
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  /* Rolling Name or Final Result */
-                                  <div className="absolute inset-0 flex items-center justify-center p-2">
-                                    <div className="text-center w-full">
-                                      <div className={`rounded-lg px-4 py-3 shadow-lg border-2 ${
-                                        showFinalResults
-                                          ? 'border-green-400 bg-green-100 shadow-green-200' 
-                                          : 'border-yellow-200 bg-white'
-                                      }`}>
-                                        <span className={`text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold block break-words leading-tight ${
-                                          showFinalResults ? 'text-black' : 'text-black'
-                                        }`}>
-                                          {rollingNames[columnIndex] || (showFinalResults ? localState.finalWinners?.[columnIndex]?.name : '') || '...'}
-                                        </span>
-                                        {showFinalResults && (
-                                          <div className="text-lg sm:text-xl mt-2 text-green-500 font-bold">
-                                            WINNER!
+                  <div className="mx-auto max-w-7xl">
+                    {(() => {
+                      const layoutConfig = getLayoutConfig(drawCount);
+                      const gridRows = createGridRows(drawCount, layoutConfig);
+                      
+                      return (
+                        <div className="space-y-3">
+                          {gridRows.map((rowData, rowIndex) => (
+                            <div 
+                              key={rowIndex}
+                              className={`grid gap-3 justify-center ${
+                                rowData.slotsInThisRow === 6 ? 'grid-cols-6' :
+                                rowData.slotsInThisRow === 5 ? 'grid-cols-5' : 
+                                rowData.slotsInThisRow === 4 ? 'grid-cols-4' : 
+                                rowData.slotsInThisRow === 3 ? 'grid-cols-3' : 
+                                rowData.slotsInThisRow === 2 ? 'grid-cols-2' : 'grid-cols-1'
+                              }`}
+                            >
+                              {Array.from({ length: rowData.slotsInThisRow }).map((_, colIndex) => {
+                                const actualIndex = rowData.startIndex + colIndex;
+                                return (
+                                  <div key={actualIndex} className="relative">
+                                    {/* Slot Machine */}
+                                    <div className="border-transparent">
+                                      <div className="relative z-10 h-full flex flex-col">
+                                        {/* Main Display Area */}
+                                        <div className="flex-1 flex items-center justify-center relative">
+                                          <div className={`w-full ${layoutConfig.height} bg-transparent overflow-hidden relative`}>
+                                            {/* Show "Ready" state when not spinning */}
+                                            {!isSpinning && !showFinalResults ? (
+                                              <div className="absolute inset-0 flex items-center justify-center">
+                                                <div className="text-center">
+                                                  <div className="bg-green-400 rounded-lg px-4 py-3 shadow-md">
+                                                    <span className={`${layoutConfig.readyTextSize} font-bold text-white block`}>
+                                                      Ready
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              /* Rolling Name or Final Result */
+                                              <div className="absolute inset-0 flex items-center justify-center p-2">
+                                                <div className="text-center w-full">
+                                                  <div className={`rounded-lg px-3 py-2 shadow-lg ${
+                                                    showFinalResults
+                                                      ? 'bg-green-100' 
+                                                      : 'bg-white'
+                                                  }`}>
+                                                    <span className={`${layoutConfig.textSize} font-bold block break-words leading-tight ${
+                                                      showFinalResults ? 'text-black' : 'text-black'
+                                                    }`}>
+                                                      {rollingNames[actualIndex] || (showFinalResults ? localState.finalWinners?.[actualIndex]?.name : '') || '...'}
+                                                    </span>
+                                                    {showFinalResults && (
+                                                      <div className={`${layoutConfig.winnerTextSize} mt-1 text-green-500 font-bold`}>
+                                                        WINNER!
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            )}
                                           </div>
-                                        )}
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
-                                )}
-                              </div>
+                                );
+                              })}
                             </div>
-                          </div>
+                          ))}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })()}
                   </div>
                   
                   {showFinalResults && (
                     <div className="text-center mt-8">
-
+                      {/* Konten tambahan jika diperlukan */}
                     </div>
                   )}
                 </div>
@@ -356,7 +408,7 @@ const DisplayPage: React.FC = () => {
             ) : (
               // Ready State
               <div className="text-center">
-                <div className="text-8xl font-bold text-slate-700 uppercase">
+                <div className="text-8xl font-bold text-white uppercase">
                   Ready
                 </div>       
               </div>
