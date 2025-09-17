@@ -174,11 +174,12 @@ const DisplayPage: React.FC = () => {
       console.log('Starting fast multi-slot animation for', drawCount, 'slots');
       
       const interval = setInterval(() => {
-        const newRollingNames = Array.from({ length: drawCount }, () => {
-          // Show random names quickly
+        const newRollingNames = [];
+        
+        for (let i = 0; i < drawCount; i++) {
           const randomParticipant = participantsSnapshot[Math.floor(Math.random() * participantsSnapshot.length)];
-          return randomParticipant?.name || '';
-        });
+          newRollingNames.push(randomParticipant?.name || '');
+        }
         
         setRollingNames(newRollingNames);
       }, ANIMATION_SPEED);
@@ -243,13 +244,14 @@ const DisplayPage: React.FC = () => {
         }}
       >
         <div className="fixed inset-0 bg-gradient-to-br from-blue-300 to-red-300 flex flex-col text-slate-800 overflow-hidden">
-          {/* Large Background Prize Image */}
+          
+          {/* Prize Image - Positioned at bottom right corner */}
           {localState.selectedPrizeImage && (
-            <div className="absolute inset-0 z-0">
+            <div className="absolute bottom-0 right-0 z-0">
               <img
                 src={localState.selectedPrizeImage}
-                alt="Prize Background"
-                className="w-3/4 h-3/4 object-contain mx-auto my-32"
+                alt="Prize"
+                className="w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 xl:w-[28rem] xl:h-[28rem] 2xl:w-[42rem] 2xl:h-[42rem] object-contain"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.style.display = 'none';
@@ -279,6 +281,19 @@ const DisplayPage: React.FC = () => {
             )}
           </div>
 
+          {/* Prize Name - Centered at top */}
+          {localState.selectedPrizeName && (localState.isDrawing || showFinalResults) && (
+            <div className="absolute top-24 left-0 right-0 z-20">
+              <div className="text-center">
+                <div className="bg-blue-900 backdrop-blur-sm rounded-2xl px-8 py-4 mx-auto inline-block shadow-xl">
+                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white uppercase">
+                    {localState.selectedPrizeName}
+                  </h1>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Main Content */}
           <div className="flex-1 flex items-center justify-center px-6 pt-32 relative z-10">
             {localState.isDrawing || showFinalResults ? (
@@ -302,11 +317,13 @@ const DisplayPage: React.FC = () => {
                                 ? 'border-transparent bg-transparent shadow-transparent' 
                                 : 'bg-transparent shadow-transparent'
                             }`}>
+                              {/* Name */}
                               <span className={`font-bold whitespace-nowrap overflow-visible max-w-full text-4xl md:text-6xl ${
                                 showFinalResults ? 'text-white' : 'text-white'
                               }`}>
                                 {currentSingleName || (showFinalResults ? localState.finalWinners?.[0]?.name : '') || '...'}
                               </span>
+                              
                               {showFinalResults && (
                                 <div className="text-6xl mt-4 text-green-400 font-bold">
                                   PEMENANG!
@@ -370,11 +387,13 @@ const DisplayPage: React.FC = () => {
                                                       ? 'bg-green-100' 
                                                       : 'bg-white'
                                                   }`}>
+                                                    {/* Name */}
                                                     <span className={`${layoutConfig.textSize} font-bold block break-words leading-tight ${
                                                       showFinalResults ? 'text-black' : 'text-black'
                                                     }`}>
                                                       {rollingNames[actualIndex] || (showFinalResults ? localState.finalWinners?.[actualIndex]?.name : '') || '...'}
                                                     </span>
+                                                    
                                                     {showFinalResults && (
                                                       <div className={`${layoutConfig.winnerTextSize} mt-1 text-green-500 font-bold`}>
                                                         WINNER!
