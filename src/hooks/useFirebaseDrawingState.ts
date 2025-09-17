@@ -11,6 +11,7 @@ interface DrawingState {
   showConfetti: boolean;
   selectedPrizeName?: string;
   selectedPrizeImage?: string;
+  selectedPrizeId?: string | null;
   selectedPrizeQuota: number;
   participants: Participant[];
   drawStartTime?: number;
@@ -24,6 +25,7 @@ const defaultDrawingState: DrawingState = {
   isDrawing: false,
   currentWinners: [],
   showConfetti: false,
+  selectedPrizeId: null,
   selectedPrizeQuota: 0,
   participants: [],
   shouldStartSpinning: false,

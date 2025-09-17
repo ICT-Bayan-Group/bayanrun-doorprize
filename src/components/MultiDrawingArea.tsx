@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Square, Trophy, Users, Gift, Trash2, AlertTriangle, Clock, Target, CheckCircle, XCircle } from 'lucide-react';
+import { Play, Square, Trophy, Users, Gift, Trash2, AlertTriangle, Clock, Target, CheckCircle, XCircle, Shield } from 'lucide-react';
 import { Participant, Winner, AppSettings, Prize } from '../types';
 
 interface MultiDrawingAreaProps {
@@ -51,6 +51,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
   
   // NEW: Pre-determined winners state
   const [predeterminedWinners, setPredeterminedWinners] = useState<Winner[]>([]);
+  const [vipControlActive, setVipControlActive] = useState(false);
   
   // Enhanced winner processing state
   const [winnerProcessing, setWinnerProcessing] = useState<WinnerProcessingState>({
@@ -75,6 +76,26 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
   const drawCount = selectedPrize
     ? Math.min(selectedPrize.remainingQuota, availableParticipants.length)
     : Math.min(settings.multiDrawCount, availableParticipants.length);
+
+  // Monitor VIP control activity from Firebase state
+  useEffect(() => {
+    // Check if VIP has processed winners
+    if (updateDrawingState && typeof updateDrawingState === 'function') {
+      // Access the current drawing state to check for VIP flags
+      const checkVipControl = () => {
+        // This assumes we can access drawingState from props or context
+        // You may need to adjust this based on your actual state structure
+        const hasVipProcessed = localStorage.getItem('vipProcessedWinners') === 'true';
+        setVipControlActive(hasVipProcessed);
+      };
+      
+      checkVipControl();
+      
+      // Set up interval to check VIP status periodically
+      const interval = setInterval(checkVipControl, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [updateDrawingState]);
 
   // Timer for drawing duration
   useEffect(() => {
@@ -195,13 +216,13 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
       return;
     }
     
-    console.log('Starting draw with prize:', selectedPrize);
+    console.log('Admin: Starting draw with prize:', selectedPrize);
     
     // STEP 1: Generate winners immediately and store them
     const finalWinners = generateWinners();
     setPredeterminedWinners(finalWinners);
     
-    console.log('Pre-determined winners:', finalWinners);
+    console.log('Admin: Pre-determined winners:', finalWinners);
     
     // STEP 2: Update Firebase state with pre-determined winners
     updateDrawingState({
@@ -213,18 +234,24 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
       selectedPrizeName: selectedPrize?.name,
       selectedPrizeImage: selectedPrize?.image,
       selectedPrizeQuota: selectedPrize?.remainingQuota || 1,
+      selectedPrizeId: selectedPrize?.id,
       participants: participants,
       drawStartTime: Date.now(),
       finalWinners: finalWinners, // Store pre-determined winners
-      predeterminedWinners: finalWinners // For display page to use
+      predeterminedWinners: finalWinners, // For display page to use
+      vipProcessedWinners: false // Reset VIP flag
     });
+    
+    // Clear VIP flag from localStorage
+    localStorage.removeItem('vipProcessedWinners');
+    setVipControlActive(false);
     
     onStartDraw();
   }, [validateDraw, generateWinners, onStartDraw, updateDrawingState, selectedPrize, participants]);
 
   // FIXED: handleStartSpinning - Start spinning animation
   const handleStartSpinning = useCallback(() => {
-    console.log('Starting spinning animation with pre-determined winners:', predeterminedWinners);
+    console.log('Admin: Starting spinning animation with pre-determined winners:', predeterminedWinners);
     
     // Update Firebase state to start spinning
     updateDrawingState({
@@ -234,12 +261,41 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     });
   }, [updateDrawingState, predeterminedWinners]);
 
-  // FIXED: handleStopDrawClick - Only trigger natural slowdown
+  // FIXED: handleStopDrawClick - Enhanced to prevent duplicate processing
   const handleStopDrawClick = useCallback(async () => {
-    console.log('Starting natural slowdown to pre-determined winners:', predeterminedWinners);
+    console.log('Admin: Starting natural slowdown to pre-determined winners:', predeterminedWinners);
     
     if (predeterminedWinners.length === 0) {
-      console.error('No pre-determined winners found!');
+      console.error('Admin: No pre-determined winners found!');
+      return;
+    }
+    
+    // Check if VIP has already processed this draw
+    const vipProcessed = localStorage.getItem('vipProcessedWinners') === 'true';
+    if (vipProcessed) {
+      console.log('Admin: VIP has already processed winners, skipping database operations');
+      
+      // Just update UI state without database operations
+      updateDrawingState({
+        isDrawing: false,
+        shouldStartSpinning: false,
+        shouldStartSlowdown: false,
+        showWinnerDisplay: true,
+        finalWinners: predeterminedWinners,
+        currentWinners: predeterminedWinners,
+        showConfetti: true
+      });
+      
+      // Call onStopDraw without winners to prevent duplicate processing
+      onStopDraw([]);
+      
+      // Process winner removal after draw completion
+      setTimeout(() => {
+        processWinnerRemoval(predeterminedWinners);
+      }, 1000);
+      
+      // Clear pre-determined winners
+      setPredeterminedWinners([]);
       return;
     }
     
@@ -252,7 +308,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     
     // STEP 2: After 3.5 seconds (3s slowdown + 0.5s buffer), finalize results
     setTimeout(() => {
-      console.log('Finalizing results after natural slowdown');
+      console.log('Admin: Finalizing results after natural slowdown');
       
       updateDrawingState({
         isDrawing: false,
@@ -264,7 +320,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         showConfetti: true
       });
       
-      // Call onStopDraw with pre-determined winners
+      // Call onStopDraw with pre-determined winners (Admin processes)
       onStopDraw(predeterminedWinners);
       
       // Process winner removal after draw completion
@@ -283,10 +339,14 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
   const handleDeleteClick = () => setShowDeleteConfirm(true);
   
   const handleConfirmDelete = () => {
-    console.log('Clearing winners');
+    console.log('Admin: Clearing winners');
     
     // Clear pre-determined winners
     setPredeterminedWinners([]);
+    
+    // Clear VIP processing flag
+    localStorage.removeItem('vipProcessedWinners');
+    setVipControlActive(false);
     
     // Update Firebase state
     updateDrawingState({
@@ -294,7 +354,8 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
       currentWinners: [],
       finalWinners: [],
       showConfetti: false,
-      predeterminedWinners: []
+      predeterminedWinners: [],
+      vipProcessedWinners: false
     });
     
     onClearWinners();
@@ -317,6 +378,12 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
             <Trophy className="w-5 h-5 text-green-600" />
           </div>
           Undian Doorprize
+          {vipControlActive && (
+            <div className="flex items-center gap-2 px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+              <Shield className="w-3 h-3" />
+              VIP Control Active
+            </div>
+          )}
         </h2>
         
         {isDrawing && (
@@ -328,6 +395,21 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
           </div>
         )}
       </div>
+
+      {/* VIP Control Status */}
+      {vipControlActive && (
+        <div className="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+          <div className="flex items-center gap-3">
+            <Shield className="w-5 h-5 text-purple-600" />
+            <div>
+              <p className="font-medium text-purple-800">VIP Control Mode</p>
+              <p className="text-purple-600 text-sm">
+                Drawing is being controlled by VIP panel. Winners will be processed automatically.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Prize Selection Status */}
       {selectedPrize ? (
@@ -576,6 +658,11 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                   }
                 </span>
               </div>
+              {vipControlActive && (
+                <span className="text-xs text-purple-600 font-medium">
+                  VIP Control Mode
+                </span>
+              )}
             </div>
           </motion.div>
         )}
@@ -628,6 +715,11 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
             <h3 className="text-lg font-semibold text-green-600 flex items-center gap-2">
               <Trophy className="w-5 h-5" />
               Pemenang Terakhir ({currentWinners.length})
+              {vipControlActive && (
+                <span className="text-xs text-purple-600 font-medium">
+                  (VIP Processed)
+                </span>
+              )}
             </h3>
             {selectedPrize && (
               <span className="px-3 py-1 bg-purple-100 text-purple-700 text-sm rounded-full font-medium">
