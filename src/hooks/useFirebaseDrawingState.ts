@@ -11,6 +11,7 @@ interface DrawingState {
   showConfetti: boolean;
   selectedPrizeName?: string;
   selectedPrizeImage?: string;
+  selectedPrizeId?: string | null;
   selectedPrizeQuota: number;
   participants: Participant[];
   drawStartTime?: number;
@@ -18,16 +19,21 @@ interface DrawingState {
   shouldStartSpinning?: boolean;
   showWinnerDisplay?: boolean;
   shouldResetToReady?: boolean;
+  vipProcessedWinners?: boolean;
+  vipControlActive?: boolean;
 }
 
 const defaultDrawingState: DrawingState = {
   isDrawing: false,
   currentWinners: [],
   showConfetti: false,
+  selectedPrizeId: null,
   selectedPrizeQuota: 0,
   participants: [],
   shouldStartSpinning: false,
-  showWinnerDisplay: false
+  showWinnerDisplay: false,
+  vipProcessedWinners: false,
+  vipControlActive: false
 };
 
 export function useFirebaseDrawingState() {
@@ -43,6 +49,8 @@ export function useFirebaseDrawingState() {
       (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data() as DrawingState;
+          
+          // ENHANCED: Data validation and conversion
           // Convert any Timestamp objects back to Date objects
           if (data.currentWinners) {
             data.currentWinners = data.currentWinners.map(winner => ({
@@ -62,6 +70,18 @@ export function useFirebaseDrawingState() {
               addedAt: participant.addedAt instanceof Date ? participant.addedAt : new Date(participant.addedAt)
             }));
           }
+          
+          // ENHANCED: Ensure VIP flags are properly handled
+          data.vipProcessedWinners = data.vipProcessedWinners || false;
+          data.vipControlActive = data.vipControlActive || false;
+          
+          console.log('Firebase state updated:', {
+            isDrawing: data.isDrawing,
+            currentWinners: data.currentWinners?.length || 0,
+            vipProcessedWinners: data.vipProcessedWinners,
+            vipControlActive: data.vipControlActive
+          });
+          
           setDrawingState(data);
         } else {
           setDrawingState(defaultDrawingState);
@@ -81,10 +101,13 @@ export function useFirebaseDrawingState() {
 
   const updateDrawingState = useCallback(async (updates: Partial<DrawingState>) => {
     try {
+      console.log('Updating Firebase drawing state:', updates);
+      
       const docRef = doc(db, 'drawingState', 'current');
       
-      // Process the updates to handle Date objects
+      // ENHANCED: Process the updates to handle Date objects and validation
       const processedUpdates = { ...updates };
+      
       if (processedUpdates.currentWinners) {
         processedUpdates.currentWinners = processedUpdates.currentWinners.map(winner => ({
           ...winner,
@@ -103,13 +126,22 @@ export function useFirebaseDrawingState() {
           addedAt: participant.addedAt instanceof Date ? participant.addedAt : new Date(participant.addedAt)
         }));
       }
+      
+      // Add timestamp for tracking
+      processedUpdates.lastUpdated = new Date();
 
       await updateDoc(docRef, processedUpdates);
+      console.log('Firebase state update successful');
     } catch (err) {
       // If document doesn't exist, create it
       if ((err as any).code === 'not-found') {
+        console.log('Creating new Firebase drawing state document');
         const docRef = doc(db, 'drawingState', 'current');
-        await setDoc(docRef, { ...defaultDrawingState, ...updates });
+        await setDoc(docRef, { 
+          ...defaultDrawingState, 
+          ...updates, 
+          lastUpdated: new Date() 
+        });
       } else {
         console.error('Error updating drawing state:', err);
         setError((err as Error).message);
@@ -120,8 +152,16 @@ export function useFirebaseDrawingState() {
 
   const resetDrawingState = useCallback(async () => {
     try {
+      console.log('Resetting Firebase drawing state');
       const docRef = doc(db, 'drawingState', 'current');
-      await setDoc(docRef, defaultDrawingState);
+      await setDoc(docRef, { 
+        ...defaultDrawingState, 
+        lastUpdated: new Date() 
+      });
+      
+      // Clear localStorage VIP flags
+      localStorage.removeItem('vipProcessedWinners');
+      localStorage.removeItem('vipDrawSession');
     } catch (err) {
       console.error('Error resetting drawing state:', err);
       setError((err as Error).message);

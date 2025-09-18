@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Confetti from 'react-confetti';
 import { Participant, Winner, AppSettings, Prize } from '../types';
@@ -41,11 +41,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
   const settings = settingsHook.data[0] || defaultSettings;
   
   const [currentWinners, setCurrentWinners] = useState<Winner[]>(drawingState.currentWinners || []);
-  const [selectedPrizeId, setSelectedPrizeId] = useState<string | null>(null);
+  const [selectedPrizeId, setSelectedPrizeId] = useState<string | null>(drawingState.selectedPrizeId || null);
   const [isDrawing, setIsDrawing] = useState(drawingState.isDrawing || false);
   const [isLocked, setIsLocked] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showConfetti, setShowConfetti] = useState(drawingState.showConfetti || false);
+
+  // NEW: VIP control monitoring
+  const [vipControlActive, setVipControlActive] = useState(false);
 
   // Loading state
   const isLoading = participantsHook.loading || winnersHook.loading || prizesHook.loading || settingsHook.loading;
@@ -56,11 +59,44 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     return prizes.find(prize => prize.id === selectedPrizeId) || null;
   }, [prizes, selectedPrizeId]);
 
+  // ENHANCED: Monitor VIP control activity with better detection
+  useEffect(() => {
+    const checkVipControl = () => {
+      const vipProcessed = drawingState.vipProcessedWinners || 
+                          drawingState.vipControlActive || 
+                          localStorage.getItem('vipProcessedWinners') === 'true';
+      setVipControlActive(vipProcessed);
+      
+      if (vipProcessed && !vipControlActive) {
+        console.log('Admin: VIP control detected, switching to monitoring mode');
+      }
+    };
+    
+    checkVipControl();
+    
+    // Set up periodic check for VIP control changes
+    const interval = setInterval(checkVipControl, 500);
+    return () => clearInterval(interval);
+  }, [drawingState, vipControlActive]);
+
   // Sync local state with Firebase drawing state
-  React.useEffect(() => {
+  useEffect(() => {
     setCurrentWinners(drawingState.currentWinners || []);
     setIsDrawing(drawingState.isDrawing || false);
     setShowConfetti(drawingState.showConfetti || false);
+    
+    // Sync selected prize
+    if (drawingState.selectedPrizeId !== undefined) {
+      setSelectedPrizeId(drawingState.selectedPrizeId);
+    }
+    
+    // ENHANCED: Handle VIP processed winners immediately
+    if (drawingState.vipProcessedWinners && drawingState.currentWinners?.length > 0) {
+      console.log('Admin: VIP has processed winners, updating display');
+      setCurrentWinners(drawingState.currentWinners);
+      setShowConfetti(drawingState.showConfetti || false);
+      setVipControlActive(true);
+    }
   }, [drawingState]);
 
   const addParticipant = useCallback((name: string) => {
@@ -99,6 +135,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     
     console.log('Admin: Starting draw with participants:', participants.length);
     
+    // Clear VIP flags when starting new draw
+    setVipControlActive(false);
+    
     setIsDrawing(true);
     setCurrentWinners([]);
     setShowConfetti(false);
@@ -111,35 +150,86 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       selectedPrizeName: selectedPrize?.name,
       selectedPrizeImage: selectedPrize?.image,
       selectedPrizeQuota: selectedPrize?.remainingQuota || 1,
+      selectedPrizeId: selectedPrize?.id || null,
       participants: participants,
       drawStartTime: Date.now(),
       showWinnerDisplay: false,
       shouldStartSpinning: false,
       shouldResetToReady: false,
-      shouldStartSlowdown: false
+      shouldStartSlowdown: false,
+      vipProcessedWinners: false // Reset VIP flag
     });
   }, [participants, isDrawing, selectedPrize, updateDrawingState]);
 
-  // Stop drawing - handles pre-determined winners from MultiDrawingArea
+  // ENHANCED: Stop drawing - handles VIP processing check
   const stopDrawing = useCallback((finalWinners?: Winner[]) => {
     if (!isDrawing) return;
 
     console.log('Admin: Processing final winners:', finalWinners);
 
-    if (!finalWinners || finalWinners.length === 0) {
-      console.error('Admin: No final winners provided');
+    // ENHANCED: Check if VIP has already processed winners with multiple sources
+    const vipProcessed = drawingState.vipProcessedWinners || 
+                        drawingState.vipControlActive || 
+                        vipControlActive ||
+                        localStorage.getItem('vipProcessedWinners') === 'true';
+    
+    if (vipProcessed && (!finalWinners || finalWinners.length === 0)) {
+      console.log('Admin: VIP has processed winners, skipping database operations');
+      
+      // ENHANCED: Set current winners from drawing state with validation
+      const winnersFromState = drawingState.currentWinners || drawingState.finalWinners || [];
+      
+      if (winnersFromState.length === 0) {
+        console.warn('Admin: No winners found in VIP processed state');
+        setIsDrawing(false);
+        return;
+      }
+      
+      setCurrentWinners(winnersFromState);
+      
+      // Show confetti - NO AUTO-HIDE, controlled by admin
+      setShowConfetti(true);
+      
+      // Play sound effect
+      if (settings.soundEnabled) {
+        try {
+          const audio = new Audio('/celebration-sound.mp3');
+          audio.play().catch(() => console.log('Could not play sound'));
+        } catch (error) {
+          console.log('Sound not available');
+        }
+      }
+      
+      setIsDrawing(false);
       return;
     }
 
-    // These winners are already generated and passed from MultiDrawingArea
+    // ENHANCED: Validate final winners before processing
+    if (!finalWinners || finalWinners.length === 0) {
+      console.error('Admin: No final winners provided and VIP has not processed');
+      setIsDrawing(false);
+      return;
+    }
+
+    // Admin processing (when VIP hasn't processed)
     const newWinners = finalWinners;
     
-    // Add to winners database
-    newWinners.forEach(winner => winnersHook.add(winner));
+    // ENHANCED: Add to winners database with duplicate check
+    const existingWinnerNames = winners.map(w => w.name);
+    const uniqueNewWinners = newWinners.filter(winner => 
+      !existingWinnerNames.includes(winner.name)
+    );
+    
+    if (uniqueNewWinners.length > 0) {
+      uniqueNewWinners.forEach(winner => winnersHook.add(winner));
+      console.log('Admin: Added', uniqueNewWinners.length, 'new winners to database');
+    } else {
+      console.log('Admin: All winners already exist in database');
+    }
     
     // Update prize quota if prize was selected
     if (selectedPrize) {
-      const newQuota = Math.max(0, selectedPrize.remainingQuota - newWinners.length);
+      const newQuota = Math.max(0, selectedPrize.remainingQuota - uniqueNewWinners.length);
       prizesHook.update(selectedPrize.id, {
         remainingQuota: newQuota
       });
@@ -147,6 +237,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       // Clear selected prize if quota is exhausted
       if (newQuota <= 0) {
         setSelectedPrizeId(null);
+        updateDrawingState({
+          selectedPrizeId: null
+        });
       }
     }
     
@@ -167,7 +260,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     }
     
     setIsDrawing(false);
-  }, [isDrawing, selectedPrize, settings, winnersHook, prizesHook, setSelectedPrizeId]);
+  }, [isDrawing, selectedPrize, settings, winnersHook, prizesHook, setSelectedPrizeId, drawingState, vipControlActive, winners]);
 
   // Clear current winners - MANUAL CONTROL
   const clearCurrentWinners = useCallback(() => {
@@ -175,6 +268,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     
     setCurrentWinners([]);
     setShowConfetti(false); // Manual confetti control
+    setVipControlActive(false); // Reset VIP flag
+    
+    // ENHANCED: Clear VIP flags from localStorage
+    localStorage.removeItem('vipProcessedWinners');
+    localStorage.removeItem('vipDrawSession');
     
     updateDrawingState({ 
       currentWinners: [], 
@@ -183,7 +281,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       finalWinners: [],
       predeterminedWinners: [],
       shouldStartSlowdown: false,
-      shouldStartSpinning: false
+      shouldStartSpinning: false,
+      vipProcessedWinners: false, // Reset VIP flag
+      vipControlActive: false // Reset VIP control flag
     });
   }, [updateDrawingState]);
 
@@ -213,6 +313,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     // Clear selection if deleted prize was selected
     if (selectedPrizeId === id) {
       setSelectedPrizeId(null);
+      updateDrawingState({
+        selectedPrizeId: null
+      });
     }
   }, [prizesHook, selectedPrizeId]);
 
@@ -220,6 +323,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
   const handleSelectPrize = useCallback((prize: Prize | null) => {
     console.log('Admin: Prize selected:', prize?.name);
     setSelectedPrizeId(prize?.id || null);
+    
+    // Update Firebase state with selected prize
+    updateDrawingState({
+      selectedPrizeId: prize?.id || null,
+      selectedPrizeName: prize?.name,
+      selectedPrizeImage: prize?.image,
+      selectedPrizeQuota: prize?.remainingQuota || 0
+    });
   }, []);
 
   const handleExport = useCallback(() => {
@@ -328,13 +439,42 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
           </div>
         </div>
 
-        {/* NEW: Manual Control Panel */}
+        {/* NEW: VIP Control Status */}
+        {vipControlActive && (
+          <div className="mb-6 p-4 bg-purple-100 border border-purple-300 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-purple-800">VIP Control Active</h3>
+                <p className="text-purple-600">
+                  Drawing is being controlled by VIP panel. Winners processed automatically.
+                  {localStorage.getItem('vipDrawSession') && (
+                    <span className="block text-sm mt-1">
+                      Session: {localStorage.getItem('vipDrawSession')?.slice(-8)}
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-full text-sm font-medium">
+                <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                VIP Mode
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ENHANCED: Manual Control Panel */}
         {currentWinners.length > 0 && (
           <div className="mb-6 p-4 bg-green-100 border border-green-300 rounded-lg">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-green-800">Kontrol Manual Display</h3>
-                <p className="text-green-600">Tampilan pemenang saat ini aktif - kontrol penuh ada di tangan admin</p>
+                <p className="text-green-600">
+                  Tampilan pemenang saat ini aktif - kontrol penuh ada di tangan admin
+                  {vipControlActive && <span className="text-purple-600 font-medium"> (Processed by VIP)</span>}
+                  <span className="block text-sm mt-1">
+                    {currentWinners.length} winner{currentWinners.length > 1 ? 's' : ''} displayed
+                  </span>
+                </p>
               </div>
               <div className="flex gap-3">
                 <button
@@ -374,7 +514,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
                 />
                 <div>
                   <h3 className="text-lg font-semibold text-yellow-800">Natural Slowdown Active</h3>
-                  <p className="text-yellow-600">Animasi sedang melambat secara natural menuju pemenang yang sudah ditentukan...</p>
+                  <p className="text-yellow-600">
+                    Animasi sedang melambat secara natural menuju pemenang yang sudah ditentukan...
+                    {vipControlActive && <span className="text-purple-600 font-medium"> (VIP Controlled)</span>}
+                  </p>
                 </div>
               </div>
             </div>
