@@ -243,8 +243,8 @@ const DisplayPage: React.FC = () => {
           zIndex: 10,
         }}
       >
+
         <div className="fixed inset-0 bg-gradient-to-b from-red-900 to-slate-900 flex flex-col text-slate-800 overflow-hidden">
-          
           {/* Prize Image - Positioned at bottom right corner */}
           {localState.selectedPrizeImage && (
             <div className="absolute bottom-0 right-0 z-0">
@@ -286,6 +286,7 @@ const DisplayPage: React.FC = () => {
             <div className="absolute top-24 left-0 right-0 z-20">
               <div className="text-center">
                 <div className="bg-gradient-to-b from-red-900 to-slate-900 backdrop-blur-sm rounded-2xl px-8 py-4 mx-auto inline-block shadow-xl">
+
                   <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white uppercase">
                     {localState.selectedPrizeName}
                   </h1>
@@ -320,6 +321,7 @@ const DisplayPage: React.FC = () => {
                               {/* Name */}
                               <span className={`font-bold whitespace-nowrap overflow-visible max-w-full text-4xl md:text-8xl ${
                                 showFinalResults ? 'text-8xl md:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white mb-4' : 'text-6xl md:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white mb-4'
+
                               }`}>
                                 {currentSingleName || (showFinalResults ? localState.finalWinners?.[0]?.name : '') || '...'}
                               </span>
