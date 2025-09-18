@@ -59,20 +59,24 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     return prizes.find(prize => prize.id === selectedPrizeId) || null;
   }, [prizes, selectedPrizeId]);
 
-  // Monitor VIP control activity
+  // ENHANCED: Monitor VIP control activity with better detection
   useEffect(() => {
     const checkVipControl = () => {
-      const vipProcessed = drawingState.vipProcessedWinners || false;
+      const vipProcessed = drawingState.vipProcessedWinners || 
+                          drawingState.vipControlActive || 
+                          localStorage.getItem('vipProcessedWinners') === 'true';
       setVipControlActive(vipProcessed);
+      
+      if (vipProcessed && !vipControlActive) {
+        console.log('Admin: VIP control detected, switching to monitoring mode');
+      }
     };
     
     checkVipControl();
     
-    // Monitor drawing state changes for VIP activity
-    if (drawingState.vipProcessedWinners && !vipControlActive) {
-      console.log('Admin: VIP control detected, switching to monitoring mode');
-      setVipControlActive(true);
-    }
+    // Set up periodic check for VIP control changes
+    const interval = setInterval(checkVipControl, 500);
+    return () => clearInterval(interval);
   }, [drawingState, vipControlActive]);
 
   // Sync local state with Firebase drawing state
@@ -84,6 +88,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     // Sync selected prize
     if (drawingState.selectedPrizeId !== undefined) {
       setSelectedPrizeId(drawingState.selectedPrizeId);
+    }
+    
+    // ENHANCED: Handle VIP processed winners immediately
+    if (drawingState.vipProcessedWinners && drawingState.currentWinners?.length > 0) {
+      console.log('Admin: VIP has processed winners, updating display');
+      setCurrentWinners(drawingState.currentWinners);
+      setShowConfetti(drawingState.showConfetti || false);
+      setVipControlActive(true);
     }
   }, [drawingState]);
 
@@ -155,14 +167,24 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
 
     console.log('Admin: Processing final winners:', finalWinners);
 
-    // Check if VIP has already processed winners
-    const vipProcessed = drawingState.vipProcessedWinners || vipControlActive;
+    // ENHANCED: Check if VIP has already processed winners with multiple sources
+    const vipProcessed = drawingState.vipProcessedWinners || 
+                        drawingState.vipControlActive || 
+                        vipControlActive ||
+                        localStorage.getItem('vipProcessedWinners') === 'true';
     
     if (vipProcessed && (!finalWinners || finalWinners.length === 0)) {
       console.log('Admin: VIP has processed winners, skipping database operations');
       
-      // Set current winners from drawing state
-      const winnersFromState = drawingState.finalWinners || drawingState.currentWinners || [];
+      // ENHANCED: Set current winners from drawing state with validation
+      const winnersFromState = drawingState.currentWinners || drawingState.finalWinners || [];
+      
+      if (winnersFromState.length === 0) {
+        console.warn('Admin: No winners found in VIP processed state');
+        setIsDrawing(false);
+        return;
+      }
+      
       setCurrentWinners(winnersFromState);
       
       // Show confetti - NO AUTO-HIDE, controlled by admin
@@ -182,20 +204,32 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       return;
     }
 
+    // ENHANCED: Validate final winners before processing
     if (!finalWinners || finalWinners.length === 0) {
       console.error('Admin: No final winners provided and VIP has not processed');
+      setIsDrawing(false);
       return;
     }
 
     // Admin processing (when VIP hasn't processed)
     const newWinners = finalWinners;
     
-    // Add to winners database
-    newWinners.forEach(winner => winnersHook.add(winner));
+    // ENHANCED: Add to winners database with duplicate check
+    const existingWinnerNames = winners.map(w => w.name);
+    const uniqueNewWinners = newWinners.filter(winner => 
+      !existingWinnerNames.includes(winner.name)
+    );
+    
+    if (uniqueNewWinners.length > 0) {
+      uniqueNewWinners.forEach(winner => winnersHook.add(winner));
+      console.log('Admin: Added', uniqueNewWinners.length, 'new winners to database');
+    } else {
+      console.log('Admin: All winners already exist in database');
+    }
     
     // Update prize quota if prize was selected
     if (selectedPrize) {
-      const newQuota = Math.max(0, selectedPrize.remainingQuota - newWinners.length);
+      const newQuota = Math.max(0, selectedPrize.remainingQuota - uniqueNewWinners.length);
       prizesHook.update(selectedPrize.id, {
         remainingQuota: newQuota
       });
@@ -226,7 +260,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     }
     
     setIsDrawing(false);
-  }, [isDrawing, selectedPrize, settings, winnersHook, prizesHook, setSelectedPrizeId, drawingState, vipControlActive]);
+  }, [isDrawing, selectedPrize, settings, winnersHook, prizesHook, setSelectedPrizeId, drawingState, vipControlActive, winners]);
 
   // Clear current winners - MANUAL CONTROL
   const clearCurrentWinners = useCallback(() => {
@@ -236,6 +270,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     setShowConfetti(false); // Manual confetti control
     setVipControlActive(false); // Reset VIP flag
     
+    // ENHANCED: Clear VIP flags from localStorage
+    localStorage.removeItem('vipProcessedWinners');
+    localStorage.removeItem('vipDrawSession');
+    
     updateDrawingState({ 
       currentWinners: [], 
       showConfetti: false,
@@ -244,7 +282,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       predeterminedWinners: [],
       shouldStartSlowdown: false,
       shouldStartSpinning: false,
-      vipProcessedWinners: false // Reset VIP flag
+      vipProcessedWinners: false, // Reset VIP flag
+      vipControlActive: false // Reset VIP control flag
     });
   }, [updateDrawingState]);
 
@@ -406,7 +445,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-purple-800">VIP Control Active</h3>
-                <p className="text-purple-600">Drawing is being controlled by VIP panel. Winners processed automatically.</p>
+                <p className="text-purple-600">
+                  Drawing is being controlled by VIP panel. Winners processed automatically.
+                  {localStorage.getItem('vipDrawSession') && (
+                    <span className="block text-sm mt-1">
+                      Session: {localStorage.getItem('vipDrawSession')?.slice(-8)}
+                    </span>
+                  )}
+                </p>
               </div>
               <div className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-full text-sm font-medium">
                 <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
@@ -425,6 +471,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
                 <p className="text-green-600">
                   Tampilan pemenang saat ini aktif - kontrol penuh ada di tangan admin
                   {vipControlActive && <span className="text-purple-600 font-medium"> (Processed by VIP)</span>}
+                  <span className="block text-sm mt-1">
+                    {currentWinners.length} winner{currentWinners.length > 1 ? 's' : ''} displayed
+                  </span>
                 </p>
               </div>
               <div className="flex gap-3">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion} from 'framer-motion';
-import { Square, Zap,  } from 'lucide-react';
+import { Square, Zap, Shield, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useFirestore } from '../hooks/useFirestore';
 import { useFirebaseDrawingState } from '../hooks/useFirebaseDrawingState';
 import { Participant, Winner, Prize, AppSettings } from '../types';
@@ -30,6 +30,12 @@ const VipPage: React.FC = () => {
   const [predeterminedWinners, setPredeterminedWinners] = useState<Winner[]>([]);
   const [selectedPrizeId, setSelectedPrizeId] = useState<string | null>(drawingState.selectedPrizeId || null);
   const [drawingPhase, setDrawingPhase] = useState<'ready' | 'spinning'>('ready');
+  
+  // NEW: VIP control state management
+  const [vipControlActive, setVipControlActive] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState<'idle' | 'generating' | 'saving' | 'complete' | 'error'>('idle');
+  const [lastDrawSession, setLastDrawSession] = useState<string | null>(null);
 
   // Sync with Firebase state
   useEffect(() => {
@@ -44,9 +50,16 @@ const VipPage: React.FC = () => {
     // Update phase based on drawing state
     if (!drawingState.isDrawing) {
       setDrawingPhase('ready');
+      setVipControlActive(false);
+      setIsProcessing(false);
+      setProcessingStatus('idle');
     } else if (drawingState.shouldStartSpinning) {
       setDrawingPhase('spinning');
     }
+    
+    // Check if VIP control is active
+    const vipProcessed = drawingState.vipProcessedWinners || false;
+    setVipControlActive(vipProcessed);
   }, [drawingState]);
 
   // Auto-select first available prize only if none selected
@@ -83,22 +96,96 @@ const VipPage: React.FC = () => {
     const shuffledParticipants = [...availableParticipants].sort(() => Math.random() - 0.5);
     const selectedParticipants = shuffledParticipants.slice(0, drawCount);
 
+    // Generate unique session ID for this draw
+    const sessionId = `vip-${selectedPrize.id}-${Date.now()}`;
+    setLastDrawSession(sessionId);
     return selectedParticipants.map((participant, index) => ({
       id: `${participant.id}-${Date.now()}-${index}`,
       name: participant.name,
       wonAt: new Date(),
       prizeId: selectedPrize.id,
       prizeName: selectedPrize.name,
-      drawSession: `${selectedPrize.id}-${Date.now()}`
+      drawSession: sessionId
     }));
   }, [selectedPrize, availableParticipants]);
 
+  // NEW: Enhanced database operations with conflict prevention
+  const saveWinnersToDatabase = useCallback(async (winners: Winner[]) => {
+    if (winners.length === 0) return false;
+    
+    try {
+      setProcessingStatus('saving');
+      console.log('VIP: Saving winners to database:', winners);
+      
+      // Check for existing winners with same session to prevent duplicates
+      const existingWinners = winnersHook.data.filter(w => 
+        w.drawSession === lastDrawSession
+      );
+      
+      if (existingWinners.length > 0) {
+        console.log('VIP: Winners already exist for this session, skipping save');
+        return true;
+      }
+      
+      // Save winners one by one with delay to prevent race conditions
+      for (const winner of winners) {
+        await winnersHook.add(winner);
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+      }
+      
+      console.log('VIP: Successfully saved all winners');
+      return true;
+    } catch (error) {
+      console.error('VIP: Error saving winners:', error);
+      setProcessingStatus('error');
+      return false;
+    }
+  }, [winnersHook, lastDrawSession]);
+  
+  // NEW: Enhanced prize quota update with conflict prevention
+  const updatePrizeQuota = useCallback(async (prize: Prize, winnersCount: number) => {
+    try {
+      // Get fresh prize data to prevent stale updates
+      const currentPrize = prizes.find(p => p.id === prize.id);
+      if (!currentPrize) return false;
+      
+      const newQuota = Math.max(0, currentPrize.remainingQuota - winnersCount);
+      
+      await prizesHook.update(prize.id, {
+        remainingQuota: newQuota
+      });
+      
+      console.log('VIP: Updated prize quota:', { prizeId: prize.id, newQuota });
+      
+      // Clear selected prize if quota exhausted
+      if (newQuota <= 0) {
+        setSelectedPrizeId(null);
+        await updateDrawingState({
+          selectedPrizeId: null
+        });
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('VIP: Error updating prize quota:', error);
+      return false;
+    }
+  }, [prizes, prizesHook, updateDrawingState]);
   // Main button handler - handles all phases
   const handleMainButton = useCallback(async () => {
+    if (isProcessing) {
+      console.log('VIP: Already processing, ignoring button click');
+      return;
+    }
+    
     if (drawingPhase === 'ready') {
       // Start Drawing and Spinning Phase (combined)
       if (!selectedPrize || availableParticipants.length === 0) return;
 
+      setIsProcessing(true);
+      setProcessingStatus('generating');
+      setVipControlActive(true);
+      
       console.log('VIP: Starting draw with prize:', selectedPrize);
       
       // Generate winners immediately
@@ -107,8 +194,8 @@ const VipPage: React.FC = () => {
       
       console.log('VIP: Pre-determined winners:', finalWinners);
       
-      // Update Firebase state and start spinning immediately
-      updateDrawingState({
+      // FIXED: Update Firebase state with VIP control flags
+      await updateDrawingState({
         isDrawing: true,
         currentWinners: [],
         showConfetti: false,
@@ -123,68 +210,90 @@ const VipPage: React.FC = () => {
         finalWinners: finalWinners,
         predeterminedWinners: finalWinners,
         shouldStartSlowdown: false,
-        shouldResetToReady: false
+        shouldResetToReady: false,
+        vipProcessedWinners: false, // Will be set to true after processing
+        vipControlActive: true // NEW: Mark VIP control as active
       });
       
       setIsDrawing(true);
       setDrawingPhase('spinning'); // Skip to spinning phase directly
+      setProcessingStatus('complete');
 
     } else if (drawingPhase === 'spinning') {
       // Stop Drawing Phase
       if (predeterminedWinners.length === 0) return;
 
+      setIsProcessing(true);
+      setProcessingStatus('saving');
+      
       console.log('VIP: Starting natural slowdown to pre-determined winners:', predeterminedWinners);
       
-      // Start natural slowdown process
-      updateDrawingState({
+      // FIXED: Start natural slowdown process with VIP flags
+      await updateDrawingState({
         shouldStartSlowdown: true,
         shouldStartSpinning: true,
-        predeterminedWinners: predeterminedWinners
+        predeterminedWinners: predeterminedWinners,
+        vipControlActive: true // Maintain VIP control
       });
       
-      // After 3.5 seconds, finalize results
-      setTimeout(() => {
-        console.log('VIP: Finalizing results after natural slowdown');
-        
-        updateDrawingState({
-          isDrawing: false,
-          shouldStartSpinning: false,
-          shouldStartSlowdown: false,
-          showWinnerDisplay: true,
-          finalWinners: predeterminedWinners,
-          currentWinners: predeterminedWinners,
-          showConfetti: true
-        });
-        
-        // Add winners to database
-        predeterminedWinners.forEach(winner => winnersHook.add(winner));
-        
-        // Update prize quota
-        if (selectedPrize) {
-          const newQuota = Math.max(0, selectedPrize.remainingQuota - predeterminedWinners.length);
-          prizesHook.update(selectedPrize.id, {
-            remainingQuota: newQuota
-          });
-          
-          // Clear selected prize if quota exhausted
-          if (newQuota <= 0) {
-            setSelectedPrizeId(null);
-            updateDrawingState({
-              selectedPrizeId: null
-            });
-          }
-        }
-        
-        setIsDrawing(false);
-        setPredeterminedWinners([]);
-        setDrawingPhase('ready');
-        
-      }, 3500);
+   // FIXED: After 3.5 seconds, finalize results with proper sequencing
+setTimeout(async () => {
+  console.log('VIP: Finalizing results after natural slowdown');
+  
+  // Step 1: Save winners to database first
+  const saveSuccess = await saveWinnersToDatabase(predeterminedWinners);
+  if (!saveSuccess) {
+    setProcessingStatus('error');
+    setIsProcessing(false);
+    return;
+  }
+  
+  // Step 2: Update prize quota
+  if (selectedPrize) {
+    await updatePrizeQuota(selectedPrize, predeterminedWinners.length);
+  }
+  
+  // Step 3: Update Firebase state to show results
+  await updateDrawingState({
+    isDrawing: false,
+    shouldStartSpinning: false,
+    shouldStartSlowdown: false,
+    showWinnerDisplay: true,
+    finalWinners: predeterminedWinners,
+    currentWinners: predeterminedWinners,
+    showConfetti: true,
+    vipProcessedWinners: true,
+    vipControlActive: true
+  });
+  
+  // Step 4: Set localStorage flag for admin detection
+  localStorage.setItem('vipProcessedWinners', 'true');
+  localStorage.setItem('vipDrawSession', lastDrawSession || '');
+  
+  console.log('VIP: All processing complete, winners saved and displayed');
+  
+  setProcessingStatus('complete');
+  setIsDrawing(false);
+  setPredeterminedWinners([]);
+  setDrawingPhase('ready');
+  setIsProcessing(false);
+  
+}, 3500);
     }
-  }, [drawingPhase, selectedPrize, availableParticipants, predeterminedWinners, generateWinners, updateDrawingState, participants, winnersHook, prizesHook]);
+  }, [drawingPhase, selectedPrize, availableParticipants, predeterminedWinners, generateWinners, updateDrawingState, participants, saveWinnersToDatabase, updatePrizeQuota, lastDrawSession, isProcessing]);
 
   // Button configuration based on phase
   const getButtonConfig = () => {
+    if (isProcessing) {
+      return {
+        text: processingStatus === 'generating' ? 'GENERATING...' : 
+              processingStatus === 'saving' ? 'SAVING...' : 'PROCESSING...',
+        colors: 'from-yellow-500 to-orange-600',
+        disabled: true,
+        glowColor: 'from-yellow-400/20 to-orange-500/20'
+      };
+    }
+    
     switch (drawingPhase) {
       case 'ready':
         const canStart = selectedPrize && availableParticipants.length > 0;
@@ -217,6 +326,36 @@ const VipPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-900 to-slate-900 relative overflow-hidden">
+      {/* VIP Control Status Indicator */}
+      {vipControlActive && (
+        <div className="absolute top-4 right-4 z-20">
+          <div className="flex items-center gap-2 px-4 py-2 bg-purple-600/90 backdrop-blur-sm text-white rounded-full shadow-lg">
+            <Shield className="w-4 h-4" />
+            <span className="text-sm font-medium">VIP Control Active</span>
+            {processingStatus === 'complete' && (
+              <CheckCircle className="w-4 h-4 text-green-300" />
+            )}
+            {processingStatus === 'error' && (
+              <AlertTriangle className="w-4 h-4 text-red-300" />
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* Processing Status */}
+      {isProcessing && (
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-20">
+          <div className="flex items-center gap-3 px-6 py-3 bg-black/70 backdrop-blur-sm text-white rounded-lg shadow-xl">
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <span className="font-medium">
+              {processingStatus === 'generating' && 'Generating Winners...'}
+              {processingStatus === 'saving' && 'Saving to Database...'}
+              {processingStatus === 'complete' && 'Processing Complete!'}
+              {processingStatus === 'error' && 'Error Occurred!'}
+            </span>
+          </div>
+        </div>
+      )}
       {/* Main Content */}
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-6">
         {/* Header */}
@@ -257,8 +396,8 @@ const VipPage: React.FC = () => {
           >
             <div className="flex items-center gap-6">
               <motion.div
-                animate={drawingPhase === 'spinning' ? { rotate: 360 } : {}}
-                transition={drawingPhase === 'spinning' ? { duration: 1, repeat: Infinity, ease: "linear" } : {}}
+                animate={drawingPhase === 'spinning' || isProcessing ? { rotate: 360 } : {}}
+                transition={drawingPhase === 'spinning' || isProcessing ? { duration: 1, repeat: Infinity, ease: "linear" } : {}}
               >
               </motion.div>
               <span>{buttonConfig.text}</span>
@@ -273,7 +412,6 @@ const VipPage: React.FC = () => {
             )}
           </motion.button>
         </motion.div>
-
         {/* Footer */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -284,6 +422,11 @@ const VipPage: React.FC = () => {
           <p className="text-white/50 text-sm">
             VIP Control Panel • Bayan Run 2025
           </p>
+          {vipControlActive && (
+            <p className="text-purple-300 text-xs mt-1">
+              VIP Control Mode Active • Session: {lastDrawSession?.slice(-8)}
+            </p>
+          )}
         </motion.div>
       </div>
     </div>
