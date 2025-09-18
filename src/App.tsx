@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import AdminPage from './pages/AdminPage';
 import DisplayPage from './pages/DisplayPage';
 import LoginPage from './components/LoginPage';
+import VipPage from './pages/VipPage';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -63,9 +64,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return <LoginPage onLogin={handleLogin} />;
   }
 
-  // Clone children and pass logout handler if it's AdminPage
+  // Clone children and pass logout handler if it's AdminPage or VipPage
   if (React.isValidElement(children)) {
-    const childProps = location.pathname === '/' || location.pathname === '/admin' 
+    const childProps = (location.pathname === '/' || location.pathname === '/admin' || location.pathname === '/vip')
       ? { onLogout: handleLogout } 
       : {};
     
@@ -100,6 +101,16 @@ const App: React.FC = () => {
               <AdminPage />
             </ProtectedRoute>
           } 
+        />
+        
+        {/* Protected VIP Route */}
+        <Route
+          path="/vip"
+          element={
+            <ProtectedRoute>
+              <VipPage />
+            </ProtectedRoute>
+          }
         />
         
         {/* Public Display Route */}
