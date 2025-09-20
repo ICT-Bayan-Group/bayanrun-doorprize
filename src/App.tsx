@@ -107,9 +107,9 @@ const App: React.FC = () => {
         <Route
           path="/vip"
           element={
-            <ProtectedRoute>
+            <PublicRoute>
               <VipPage />
-            </ProtectedRoute>
+            </PublicRoute>
           }
         />
         
