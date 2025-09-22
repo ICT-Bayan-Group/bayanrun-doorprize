@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Upload, Trash2, Users, X } from 'lucide-react';
+import { Plus, Upload, Trash2, Users, X, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { Participant } from '../types';
 import { importFromFile } from '../utils/fileHandling';
 
@@ -13,6 +13,14 @@ interface ParticipantManagerProps {
   isLocked: boolean;
 }
 
+interface ImportResult {
+  success: number;
+  duplicates: number;
+  invalid: number;
+  duplicateNames: string[];
+  invalidNames: string[];
+}
+
 const ParticipantManager: React.FC<ParticipantManagerProps> = ({
   participants,
   onAddParticipant,
@@ -23,33 +31,172 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
 }) => {
   const [newName, setNewName] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicatesList, setDuplicatesList] = useState<string[]>([]);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleAddName = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newName.trim() && !isLocked) {
-      onAddParticipant(newName.trim());
-      setNewName('');
+  // Enhanced name validation
+  const validateName = useCallback((name: string): { isValid: boolean; error?: string } => {
+    const trimmedName = name.trim();
+    
+    if (!trimmedName) {
+      return { isValid: false, error: 'Nama tidak boleh kosong' };
     }
-  };
+    
+    if (trimmedName.length < 2) {
+      return { isValid: false, error: 'Nama minimal 2 karakter' };
+    }
+    
+    if (trimmedName.length > 100) {
+      return { isValid: false, error: 'Nama maksimal 100 karakter' };
+    }
+    
+    // Check for existing participant (case insensitive)
+    const isDuplicate = participants.some(p => 
+      p.name.toLowerCase().trim() === trimmedName.toLowerCase()
+    );
+    
+    if (isDuplicate) {
+      return { isValid: false, error: `Peserta "${trimmedName}" sudah terdaftar` };
+    }
+    
+    return { isValid: true };
+  }, [participants]);
 
-  const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Enhanced add participant with validation
+  const handleAddName = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    setValidationError(null);
+    
+    if (isLocked) return;
+    
+    const validation = validateName(newName);
+    
+    if (!validation.isValid) {
+      setValidationError(validation.error || 'Input tidak valid');
+      return;
+    }
+    
+    onAddParticipant(newName.trim());
+    setNewName('');
+  }, [newName, isLocked, validateName, onAddParticipant]);
+
+  // Enhanced import with duplicate detection and reporting
+  const handleFileImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || isLocked) return;
 
     setIsImporting(true);
+    setValidationError(null);
+    setImportResult(null);
+    
     try {
-      const names = await importFromFile(file);
-      onImportParticipants(names);
+      const rawNames = await importFromFile(file);
+      
+      // Process and validate names
+      const processedNames = rawNames
+        .map(name => name.trim())
+        .filter(name => name.length > 0);
+      
+      // Remove duplicates within the import file itself
+      const uniqueImportNames = [...new Set(processedNames.map(name => name.toLowerCase()))]
+        .map(lowerName => processedNames.find(name => name.toLowerCase() === lowerName)!);
+      
+      // Check against existing participants
+      const existingNames = participants.map(p => p.name.toLowerCase().trim());
+      const validNames: string[] = [];
+      const duplicateNames: string[] = [];
+      const invalidNames: string[] = [];
+      
+      uniqueImportNames.forEach(name => {
+        const validation = validateName(name);
+        
+        if (!validation.isValid) {
+          if (validation.error?.includes('sudah terdaftar')) {
+            duplicateNames.push(name);
+          } else {
+            invalidNames.push(name);
+          }
+        } else {
+          validNames.push(name);
+        }
+      });
+      
+      const result: ImportResult = {
+        success: validNames.length,
+        duplicates: duplicateNames.length,
+        invalid: invalidNames.length,
+        duplicateNames,
+        invalidNames
+      };
+      
+      setImportResult(result);
+      
+      if (validNames.length > 0) {
+        onImportParticipants(validNames);
+      }
+      
+      if (duplicateNames.length > 0) {
+        setDuplicatesList(duplicateNames);
+        setShowDuplicateModal(true);
+      }
+      
     } catch (error) {
-      alert('Error importing file. Please check the format and try again.');
+      console.error('Import error:', error);
+      setValidationError('Error importing file. Please check the format and try again.');
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
-  };
+  }, [isLocked, validateName, participants, onImportParticipants]);
+
+  // Enhanced clear with confirmation and duplicate info
+  const handleClearAll = useCallback(() => {
+    const duplicateCount = findDuplicates().length;
+    const message = duplicateCount > 0 
+      ? `Hapus semua ${participants.length} peserta? (Termasuk ${duplicateCount} duplikasi yang terdeteksi)`
+      : `Hapus semua ${participants.length} peserta?`;
+    
+    if (window.confirm(message)) {
+      onClearAll();
+      setValidationError(null);
+      setImportResult(null);
+    }
+  }, [participants.length, onClearAll]);
+
+  // Utility to find duplicates
+  const findDuplicates = useCallback((): Participant[] => {
+    const seen = new Set<string>();
+    return participants.filter(participant => {
+      const normalizedName = participant.name.toLowerCase().trim();
+      if (seen.has(normalizedName)) {
+        return true;
+      }
+      seen.add(normalizedName);
+      return false;
+    });
+  }, [participants]);
+
+  // Remove duplicates function
+  const removeDuplicates = useCallback(() => {
+    const duplicates = findDuplicates();
+    if (duplicates.length === 0) {
+      alert('Tidak ada duplikasi ditemukan');
+      return;
+    }
+    
+    if (window.confirm(`Hapus ${duplicates.length} duplikasi? Hanya akan menyisakan 1 dari setiap nama yang sama.`)) {
+      duplicates.forEach(duplicate => {
+        onRemoveParticipant(duplicate.id);
+      });
+    }
+  }, [findDuplicates, onRemoveParticipant]);
+
+  const duplicateCount = findDuplicates().length;
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -57,22 +204,84 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
         <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
           <Users className="w-5 h-5" />
           Peserta ({participants.length})
+          {duplicateCount > 0 && (
+            <span className="ml-2 px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full font-medium">
+              {duplicateCount} Duplikat
+            </span>
+          )}
         </h2>
       </div>
+
+      {/* Duplicate Warning */}
+      {duplicateCount > 0 && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-600" />
+              <span className="text-sm text-red-700 font-medium">
+                {duplicateCount} nama duplikat terdeteksi
+              </span>
+            </div>
+            {!isLocked && (
+              <button
+                onClick={removeDuplicates}
+                className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+              >
+                Hapus Duplikat
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Import Result Display */}
+      {importResult && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 text-green-600 mt-0.5" />
+            <div className="flex-1 text-sm">
+              <p className="text-blue-800 font-medium">Hasil Import:</p>
+              <p className="text-green-700">✓ {importResult.success} berhasil ditambahkan</p>
+              {importResult.duplicates > 0 && (
+                <p className="text-red-700">⚠ {importResult.duplicates} duplikat dilewati</p>
+              )}
+              {importResult.invalid > 0 && (
+                <p className="text-orange-700">✗ {importResult.invalid} tidak valid</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {!isLocked && (
         <div className="space-y-4 mb-6">
           <form onSubmit={handleAddName} className="flex gap-2">
-            <input
-              type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Tambah Nama Peserta atau BIB"
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+            <div className="flex-1">
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => {
+                  setNewName(e.target.value);
+                  if (validationError) setValidationError(null);
+                }}
+                placeholder="Tambah Nama Peserta atau BIB"
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:border-transparent transition-colors ${
+                  validationError 
+                    ? 'border-red-300 focus:ring-red-500' 
+                    : 'border-gray-300 focus:ring-blue-500'
+                }`}
+              />
+              {validationError && (
+                <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <XCircle className="w-3 h-3" />
+                  {validationError}
+                </p>
+              )}
+            </div>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              disabled={!newName.trim()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -82,7 +291,7 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv,.txt"
+              accept=".csv,.txt,.xlsx,.xls"
               onChange={handleFileImport}
               className="hidden"
             />
@@ -93,15 +302,16 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50"
             >
               <Upload className="w-4 h-4" />
-              {isImporting ? 'Importing...' : 'Import CSV/TXT'}
+              {isImporting ? 'Importing...' : 'Import File'}
             </button>
             
             {participants.length > 0 && (
               <button
-                onClick={onClearAll}
+                onClick={handleClearAll}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
               >
                 <Trash2 className="w-4 h-4" />
+                Clear All
               </button>
             )}
           </div>
@@ -110,25 +320,43 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
 
       <div className="max-h-64 overflow-y-auto">
         <AnimatePresence>
-          {participants.map((participant) => (
-            <motion.div
-              key={participant.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2"
-            >
-              <span className="text-gray-800">{participant.name}</span>
-              {!isLocked && (
-                <button
-                  onClick={() => onRemoveParticipant(participant.id)}
-                  className="text-red-500 hover:text-red-700 transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </motion.div>
-          ))}
+          {participants.map((participant) => {
+            const isDuplicate = participants.filter(p => 
+              p.name.toLowerCase().trim() === participant.name.toLowerCase().trim()
+            ).length > 1;
+            
+            return (
+              <motion.div
+                key={participant.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className={`flex items-center justify-between p-3 rounded-lg mb-2 ${
+                  isDuplicate 
+                    ? 'bg-red-50 border border-red-200' 
+                    : 'bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-800">{participant.name}</span>
+                  {isDuplicate && (
+                    <span className="px-2 py-1 bg-red-200 text-red-700 text-xs rounded-full font-medium">
+                      Duplikat
+                    </span>
+                  )}
+                </div>
+                {!isLocked && (
+                  <button
+                    onClick={() => onRemoveParticipant(participant.id)}
+                    className="text-red-500 hover:text-red-700 transition-colors"
+                    title="Hapus peserta"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
         
         {participants.length === 0 && (
@@ -139,6 +367,47 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
           </div>
         )}
       </div>
+
+      {/* Duplicate Detection Modal */}
+      {showDuplicateModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-xl p-6 max-w-md mx-4 shadow-2xl"
+          >
+            <div className="flex items-center mb-4">
+              <AlertTriangle className="w-6 h-6 text-orange-500 mr-2" />
+              <h3 className="text-lg font-bold text-gray-800">Duplikasi Terdeteksi</h3>
+            </div>
+
+            <p className="text-gray-600 mb-4">
+              {duplicatesList.length} nama sudah terdaftar dan dilewati:
+            </p>
+
+            <div className="max-h-40 overflow-y-auto mb-4 p-3 bg-gray-50 rounded-lg">
+              {duplicatesList.map((name, index) => (
+                <div key={index} className="text-sm text-gray-700 mb-1">
+                  • {name}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowDuplicateModal(false)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 };
