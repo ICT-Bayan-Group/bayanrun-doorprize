@@ -23,7 +23,7 @@ interface DrawingState {
 // Function untuk menentukan layout berdasarkan jumlah slot
 const getLayoutConfig = (drawCount: number) => {
   if (drawCount <= 5) {
-    return { rows: 1, cols: drawCount, height: 'min-h-[450px]', textSize: 'text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl', readyTextSize: 'text-lg md:text-xl lg:text-2xl', winnerTextSize: 'text-base sm:text-lg' };
+    return { rows: 1, cols: drawCount, height: 'min-h-[450px]', textSize: 'text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl', readyTextSize: 'text-2xl md:text-3xl lg:text-4xl', winnerTextSize: 'text-lg sm:text-xl' };
   } else if (drawCount <= 10) {
     return { rows: 2, cols: 5, height: 'min-h-[300px]', textSize: 'text-lg sm:text-lg md:text-xl lg:text-2xl xl:text-3xl', readyTextSize: 'text-lg md:text-xl lg:text-2xl', winnerTextSize: 'text-base sm:text-2xl' };
   } else if (drawCount <= 15) {
@@ -251,7 +251,11 @@ const DisplayPage: React.FC = () => {
               <img
                 src={localState.selectedPrizeImage}
                 alt="Prize"
-                className="w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 xl:w-[28rem] xl:h-[28rem] 2xl:w-[42rem] 2xl:h-[42rem] object-contain"
+                className="w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 lg:w-[28rem] lg:h-[28rem] xl:w-[32rem] xl:h-[32rem] 2xl:w-[48rem] 2xl:h-[48rem] object-cover translate-x-1/4 translate-y-1/4"
+                style={{ 
+                  transform: 'translate(25%, 25%)',
+                  objectFit: 'cover'
+                }}
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.style.display = 'none';
@@ -339,7 +343,7 @@ const DisplayPage: React.FC = () => {
               ) : (
                 // Multi Slot Machines untuk semua ukuran (5-30+ slot)
                 <div className="w-full px-6">
-                  <div className="mx-auto max-w-7xl">
+                  <div className="mx-auto max-w-10xl">
                     {(() => {
                       const layoutConfig = getLayoutConfig(drawCount);
                       const gridRows = createGridRows(drawCount, layoutConfig);
