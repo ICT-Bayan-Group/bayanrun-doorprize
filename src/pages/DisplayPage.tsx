@@ -345,7 +345,7 @@ const DisplayPage: React.FC = () => {
               ) : (
                 // Multi Slot Machines untuk semua ukuran (5-30+ slot)
                 <div className="w-full px-6">
-                  <div className="mx-auto max-w-7xl">
+                  <div className="mx-auto max-w-10xl">
                     {(() => {
                       const layoutConfig = getLayoutConfig(drawCount);
                       const gridRows = createGridRows(drawCount, layoutConfig);
