@@ -1,12 +1,28 @@
-// useFirebaseDrawingState.ts - IMPROVED VERSION
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { doc, onSnapshot, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { 
+  doc, 
+  onSnapshot, 
+  setDoc, 
+  updateDoc, 
+  serverTimestamp,
+  collection,
+  deleteDoc,
+  addDoc,
+  query,
+  orderBy,
+  Timestamp,
+  writeBatch,
+  Unsubscribe,
+  DocumentSnapshot,
+  QuerySnapshot
+} from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Winner, Participant } from '../types';
 
+// ===== TYPES =====
 interface DrawingState {
-  shouldStartSlowdown: any;
-  predeterminedWinners: any;
+  shouldStartSlowdown: boolean;
+  predeterminedWinners: Winner[];
   isDrawing: boolean;
   currentWinners: Winner[];
   showConfetti: boolean;
@@ -17,15 +33,33 @@ interface DrawingState {
   participants: Participant[];
   drawStartTime?: number;
   finalWinners?: Winner[];
-  shouldStartSpinning?: boolean;
-  showWinnerDisplay?: boolean;
-  shouldResetToReady?: boolean;
-  vipProcessedWinners?: boolean;
-  vipControlActive?: boolean;
-  lastUpdated?: any; // Firebase Timestamp
+  shouldStartSpinning: boolean;
+  showWinnerDisplay: boolean;
+  shouldResetToReady: boolean;
+  vipProcessedWinners: boolean;
+  vipControlActive: boolean;
+  lastUpdated?: Date;
 }
 
-const defaultDrawingState: DrawingState = {
+type ConnectionStatus = 'connected' | 'disconnected' | 'reconnecting';
+
+interface FirestoreHookResult<T> {
+  data: T[];
+  loading: boolean;
+  error: string | null;
+  connectionStatus: ConnectionStatus;
+  add: (item: Omit<T, 'id'>) => Promise<void>;
+  update: (id: string, updates: Partial<T>) => Promise<void>;
+  remove: (id: string) => Promise<void>;
+  removeMultiple: (ids: string[]) => Promise<void>;
+  clear: () => Promise<void>;
+  forceRefresh: () => void;
+}
+
+// ===== CONSTANTS =====
+const DEFAULT_DRAWING_STATE: Readonly<DrawingState> = Object.freeze({
+  shouldStartSlowdown: false,
+  predeterminedWinners: [],
   isDrawing: false,
   currentWinners: [],
   showConfetti: false,
@@ -34,246 +68,272 @@ const defaultDrawingState: DrawingState = {
   participants: [],
   shouldStartSpinning: false,
   showWinnerDisplay: false,
+  shouldResetToReady: false,
   vipProcessedWinners: false,
   vipControlActive: false
-};
+});
 
-// ENHANCED: Optimized date conversion with caching
-const convertFirestoreData = (() => {
-  const dateCache = new Map();
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  baseDelay: 1000,
+  maxDelay: 5000,
+  backoffMultiplier: 2
+} as const;
+
+const RETRYABLE_ERRORS = new Set([
+  'unavailable',
+  'deadline-exceeded', 
+  'internal',
+  'resource-exhausted'
+]);
+
+// ===== UTILITIES =====
+export class PerformanceOptimizer {
+  private static timestampCache = new WeakMap<any, Date>();
+  private static dataCache = new WeakMap<any, any>();
   
-  return (data: any): DrawingState => {
-    // Convert any Timestamp objects back to Date objects with caching
-    if (data.currentWinners) {
-      data.currentWinners = data.currentWinners.map((winner: any) => ({
-        ...winner,
-        wonAt: winner.wonAt instanceof Date ? winner.wonAt : 
-               dateCache.get(winner.wonAt?.toString()) || 
-               (() => {
-                 const date = new Date(winner.wonAt);
-                 dateCache.set(winner.wonAt?.toString(), date);
-                 return date;
-               })()
-      }));
+  static convertTimestamp(value: any): Date {
+    if (value instanceof Date) return value;
+    
+    if (value && typeof value === 'object' && typeof value.toDate === 'function') {
+      if (this.timestampCache.has(value)) {
+        return this.timestampCache.get(value)!;
+      }
+      const date = value.toDate();
+      this.timestampCache.set(value, date);
+      return date;
     }
     
-    if (data.finalWinners) {
-      data.finalWinners = data.finalWinners.map((winner: any) => ({
-        ...winner,
-        wonAt: winner.wonAt instanceof Date ? winner.wonAt : new Date(winner.wonAt)
-      }));
+    return new Date(value);
+  }
+  
+  static processFirestoreData<T>(data: any): T {
+    if (this.dataCache.has(data)) {
+      return this.dataCache.get(data);
     }
     
-    if (data.participants) {
-      data.participants = data.participants.map((participant: any) => ({
-        ...participant,
-        addedAt: participant.addedAt instanceof Date ? participant.addedAt : new Date(participant.addedAt)
-      }));
+    const processed = this.deepProcessTimestamps(data);
+    this.dataCache.set(data, processed);
+    return processed;
+  }
+  
+  private static deepProcessTimestamps(obj: any): any {
+    if (obj instanceof Timestamp) {
+      return this.convertTimestamp(obj);
     }
     
-    // Ensure VIP flags are properly handled
-    data.vipProcessedWinners = data.vipProcessedWinners || false;
-    data.vipControlActive = data.vipControlActive || false;
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.deepProcessTimestamps(item));
+    }
+    
+    if (obj && typeof obj === 'object') {
+      const processed: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        processed[key] = this.deepProcessTimestamps(value);
+      }
+      return processed;
+    }
+    
+    return obj;
+  }
+  
+  static prepareForFirestore(data: any): any {
+    if (data instanceof Date) {
+      return Timestamp.fromDate(data);
+    }
+    
+    if (Array.isArray(data)) {
+      return data.map(item => this.prepareForFirestore(item));
+    }
+    
+    if (data && typeof data === 'object') {
+      const prepared: any = {};
+      for (const [key, value] of Object.entries(data)) {
+        prepared[key] = this.prepareForFirestore(value);
+      }
+      return prepared;
+    }
     
     return data;
-  };
-})();
+  }
+}
 
+class RetryManager {
+  private static calculateDelay(attempt: number): number {
+    const delay = RETRY_CONFIG.baseDelay * Math.pow(RETRY_CONFIG.backoffMultiplier, attempt - 1);
+    return Math.min(delay, RETRY_CONFIG.maxDelay);
+  }
+  
+  static async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    shouldRetry: (error: any) => boolean = (err) => RETRYABLE_ERRORS.has(err?.code)
+  ): Promise<T> {
+    let lastError: any;
+    
+    for (let attempt = 1; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error;
+        
+        if (attempt === RETRY_CONFIG.maxRetries || !shouldRetry(error)) {
+          throw error;
+        }
+        
+        const delay = this.calculateDelay(attempt);
+        console.warn(`Attempt ${attempt} failed, retrying in ${delay}ms:`, error);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    throw lastError;
+  }
+}
+
+// ===== DRAWING STATE HOOK =====
 export function useFirebaseDrawingState() {
-  const [drawingState, setDrawingState] = useState<DrawingState>(defaultDrawingState);
+  const [drawingState, setDrawingState] = useState<DrawingState>(DEFAULT_DRAWING_STATE);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   
-  // ENHANCED: Track update attempts for retry logic
-  const updateAttempts = useRef(0);
-  const maxRetries = 3;
-  const retryDelay = 1000;
+  const unsubscribeRef = useRef<Unsubscribe | null>(null);
+  const isUnmountedRef = useRef(false);
+  const docRef = useMemo(() => doc(db, 'drawingState', 'current'), []);
+  
+  // Optimized state comparison to prevent unnecessary updates
+  const updateStateIfChanged = useCallback((newState: DrawingState) => {
+    setDrawingState(current => {
+      // Deep comparison for critical fields only
+      if (
+        current.isDrawing !== newState.isDrawing ||
+        current.currentWinners.length !== newState.currentWinners.length ||
+        current.vipProcessedWinners !== newState.vipProcessedWinners ||
+        current.showConfetti !== newState.showConfetti
+      ) {
+        return newState;
+      }
+      return current;
+    });
+  }, []);
+
+  const handleSnapshot = useCallback((docSnap: DocumentSnapshot) => {
+    if (isUnmountedRef.current) return;
+
+    try {
+      setConnectionStatus('connected');
+      
+      const data = docSnap.exists() 
+        ? { ...DEFAULT_DRAWING_STATE, ...PerformanceOptimizer.processFirestoreData(docSnap.data()) }
+        : DEFAULT_DRAWING_STATE;
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Drawing state updated:', {
+          isDrawing: data.isDrawing,
+          winners: data.currentWinners?.length || 0,
+          source: docSnap.metadata.fromCache ? 'cache' : 'server'
+        });
+      }
+
+      updateStateIfChanged(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error processing drawing state:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  }, [updateStateIfChanged]);
+
+  const handleError = useCallback((err: any) => {
+    if (isUnmountedRef.current) return;
+    
+    console.error('Drawing state subscription error:', err);
+    setError(err.message);
+    setLoading(false);
+    setConnectionStatus('disconnected');
+    
+    // Auto-reconnect after delay
+    setTimeout(() => {
+      if (!isUnmountedRef.current) {
+        setConnectionStatus('reconnecting');
+      }
+    }, 2000);
+  }, []);
 
   useEffect(() => {
-    const docRef = doc(db, 'drawingState', 'current');
+    isUnmountedRef.current = false;
     
-    console.log('Firebase: Setting up real-time listener');
-    
-    const unsubscribe = onSnapshot(
+    unsubscribeRef.current = onSnapshot(
       docRef,
-      {
-        // ENHANCED: Include metadata to detect source of changes
-        includeMetadataChanges: true
-      },
-      (docSnap) => {
-        try {
-          setConnectionStatus('connected');
-          
-          if (docSnap.exists()) {
-            const data = docSnap.data() as DrawingState;
-            const isFromCache = docSnap.metadata.fromCache;
-            
-            console.log('Firebase state received:', {
-              source: isFromCache ? 'cache' : 'server',
-              isDrawing: data.isDrawing,
-              currentWinners: data.currentWinners?.length || 0,
-              vipProcessedWinners: data.vipProcessedWinners,
-              vipControlActive: data.vipControlActive,
-              lastUpdated: data.lastUpdated
-            });
-            
-            // ENHANCED: Only process if it's fresh server data or initial load
-            if (!isFromCache || loading) {
-              const convertedData = convertFirestoreData(data);
-              setDrawingState(convertedData);
-            }
-          } else {
-            console.log('Firebase: Document does not exist, using defaults');
-            setDrawingState(defaultDrawingState);
-          }
-          
-          setLoading(false);
-          setError(null);
-          updateAttempts.current = 0; // Reset retry counter on success
-          
-        } catch (err) {
-          console.error('Error processing Firebase state:', err);
-          setError((err as Error).message);
-          setLoading(false);
-        }
-      },
-      (err) => {
-        console.error('Firebase snapshot error:', err);
-        setError(err.message);
-        setLoading(false);
-        setConnectionStatus('disconnected');
-        
-        // ENHANCED: Attempt to reconnect after error
-        setTimeout(() => {
-          setConnectionStatus('reconnecting');
-        }, 2000);
-      }
+      { includeMetadataChanges: false }, // Optimize: only server changes
+      handleSnapshot,
+      handleError
     );
 
     return () => {
-      console.log('Firebase: Cleaning up listener');
-      unsubscribe();
+      isUnmountedRef.current = true;
+      unsubscribeRef.current?.();
     };
-  }, [loading]);
+  }, [docRef, handleSnapshot, handleError]);
 
-  // ENHANCED: Update function with retry logic and conflict resolution
   const updateDrawingState = useCallback(async (updates: Partial<DrawingState>) => {
-    const attemptUpdate = async (attemptNumber: number): Promise<void> => {
-      try {
-        console.log(`Firebase update attempt ${attemptNumber}:`, updates);
-        
-        const docRef = doc(db, 'drawingState', 'current');
-        
-        // ENHANCED: Add server timestamp and attempt tracking
-        const processedUpdates = {
-          ...updates,
-          lastUpdated: serverTimestamp(),
-          updateAttempt: attemptNumber
-        };
-        
-        // Process Date objects for Firebase
-        if (processedUpdates.currentWinners) {
-          processedUpdates.currentWinners = processedUpdates.currentWinners.map((winner: any) => ({
-            ...winner,
-            wonAt: winner.wonAt instanceof Date ? winner.wonAt : new Date(winner.wonAt)
-          }));
-        }
-        if (processedUpdates.finalWinners) {
-          processedUpdates.finalWinners = processedUpdates.finalWinners.map((winner: any) => ({
-            ...winner,
-            wonAt: winner.wonAt instanceof Date ? winner.wonAt : new Date(winner.wonAt)
-          }));
-        }
+    if (!updates || Object.keys(updates).length === 0) {
+      throw new Error('No updates provided');
+    }
 
+    return RetryManager.executeWithRetry(async () => {
+      const processedUpdates = {
+        ...PerformanceOptimizer.prepareForFirestore(updates),
+        lastUpdated: serverTimestamp()
+      };
+
+      try {
         await updateDoc(docRef, processedUpdates);
-        
-        console.log(`Firebase update successful (attempt ${attemptNumber})`);
-        updateAttempts.current = 0;
         setConnectionStatus('connected');
-        
       } catch (err: any) {
-        console.error(`Firebase update failed (attempt ${attemptNumber}):`, err);
-        
-        // Handle document not found by creating it
         if (err.code === 'not-found') {
-          console.log('Creating new Firebase drawing state document');
-          const docRef = doc(db, 'drawingState', 'current');
-          await setDoc(docRef, { 
-            ...defaultDrawingState, 
-            ...updates, 
-            lastUpdated: serverTimestamp(),
+          await setDoc(docRef, {
+            ...DEFAULT_DRAWING_STATE,
+            ...processedUpdates,
             created: serverTimestamp()
           });
-          updateAttempts.current = 0;
-          return;
+        } else {
+          throw err;
         }
-        
-        // Retry logic for temporary failures
-        if (attemptNumber < maxRetries && 
-            (err.code === 'unavailable' || err.code === 'deadline-exceeded' || err.code === 'internal')) {
-          
-          console.log(`Retrying update in ${retryDelay}ms...`);
-          setConnectionStatus('reconnecting');
-          
-          await new Promise(resolve => setTimeout(resolve, retryDelay * attemptNumber));
-          return attemptUpdate(attemptNumber + 1);
-        }
-        
-        // Final failure
-        setError(err.message);
-        setConnectionStatus('disconnected');
-        throw err;
       }
-    };
+    });
+  }, [docRef]);
 
-    return attemptUpdate(1);
-  }, []);
-
-  // ENHANCED: Reset with cleanup
   const resetDrawingState = useCallback(async () => {
-    try {
-      console.log('Resetting Firebase drawing state');
-      const docRef = doc(db, 'drawingState', 'current');
+    return RetryManager.executeWithRetry(async () => {
+      await Promise.all([
+        setDoc(docRef, {
+          ...DEFAULT_DRAWING_STATE,
+          lastUpdated: serverTimestamp(),
+          resetAt: serverTimestamp()
+        }),
+        // Safely clear localStorage
+        Promise.resolve().then(() => {
+          try {
+            localStorage.removeItem('vipProcessedWinners');
+            localStorage.removeItem('vipDrawSession');
+          } catch (e) {
+            console.warn('Could not clear localStorage:', e);
+          }
+        })
+      ]);
       
-      await setDoc(docRef, { 
-        ...defaultDrawingState, 
-        lastUpdated: serverTimestamp(),
-        resetAt: serverTimestamp()
-      });
-      
-      // Clear localStorage VIP flags
-      localStorage.removeItem('vipProcessedWinners');
-      localStorage.removeItem('vipDrawSession');
-      
-      // Reset local state immediately
-      setDrawingState(defaultDrawingState);
-      
-      console.log('Firebase state reset successful');
-    } catch (err) {
-      console.error('Error resetting drawing state:', err);
-      setError((err as Error).message);
-      throw err;
-    }
+      setDrawingState(DEFAULT_DRAWING_STATE);
+    });
+  }, [docRef]);
+
+  const forceRefresh = useCallback(() => {
+    setLoading(true);
+    setConnectionStatus('reconnecting');
   }, []);
 
-  // ENHANCED: Force refresh function
-  const forceRefresh = useCallback(async () => {
-    try {
-      console.log('Force refreshing Firebase state');
-      setLoading(true);
-      setConnectionStatus('reconnecting');
-      
-      // This will trigger the useEffect to re-establish connection
-      setDrawingState(prev => ({ ...prev }));
-      
-    } catch (err) {
-      console.error('Error force refreshing:', err);
-      setError((err as Error).message);
-    }
-  }, []);
-
-  return {
+  return useMemo(() => ({
     drawingState,
     loading,
     error,
@@ -281,39 +341,10 @@ export function useFirebaseDrawingState() {
     updateDrawingState,
     resetDrawingState,
     forceRefresh
-  };
+  }), [drawingState, loading, error, connectionStatus, updateDrawingState, resetDrawingState, forceRefresh]);
 }
 
-// useFirestore.ts - IMPROVED VERSION with better error handling
-import { useState, useEffect, useCallback } from 'react';
-import { 
-  collection, 
-  doc, 
-  onSnapshot, 
-  setDoc, 
-  deleteDoc, 
-  updateDoc,
-  addDoc,
-  query,
-  orderBy,
-  Timestamp,
-  writeBatch
-} from 'firebase/firestore';
-import { db } from '../config/firebase';
-
-export interface FirestoreHookResult<T> {
-  data: T[];
-  loading: boolean;
-  error: string | null;
-  connectionStatus: 'connected' | 'disconnected' | 'reconnecting';
-  add: (item: Omit<T, 'id'>) => Promise<void>;
-  update: (id: string, updates: Partial<T>) => Promise<void>;
-  remove: (id: string) => Promise<void>;
-  removeMultiple: (ids: string[]) => Promise<void>;
-  clear: () => Promise<void>;
-  forceRefresh: () => Promise<void>;
-}
-
+// ===== GENERIC FIRESTORE HOOK =====
 export function useFirestore<T extends { id: string }>(
   collectionName: string,
   orderByField?: string
@@ -321,181 +352,142 @@ export function useFirestore<T extends { id: string }>(
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected');
-
-  useEffect(() => {
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
+  
+  const unsubscribeRef = useRef<Unsubscribe | null>(null);
+  const isUnmountedRef = useRef(false);
+  const dataHashRef = useRef<string>('');
+  
+  const queryRef = useMemo(() => {
     const collectionRef = collection(db, collectionName);
-    const q = orderByField 
+    return orderByField 
       ? query(collectionRef, orderBy(orderByField, 'desc'))
       : collectionRef;
-
-    console.log(`Firebase: Setting up listener for ${collectionName}`);
-
-    const unsubscribe = onSnapshot(
-      q,
-      {
-        // ENHANCED: Include metadata for better debugging
-        includeMetadataChanges: true
-      },
-      (snapshot) => {
-        try {
-          setConnectionStatus('connected');
-          
-          const items: T[] = [];
-          snapshot.forEach((doc) => {
-            const docData = doc.data();
-            
-            // ENHANCED: More efficient timestamp conversion
-            const processedData = { ...docData };
-            Object.keys(processedData).forEach(key => {
-              if (processedData[key] instanceof Timestamp) {
-                processedData[key] = processedData[key].toDate();
-              }
-            });
-            
-            items.push({ id: doc.id, ...processedData } as T);
-          });
-          
-          // Only update if data actually changed
-          if (JSON.stringify(items) !== JSON.stringify(data)) {
-            setData(items);
-            console.log(`${collectionName}: Updated ${items.length} items`);
-          }
-          
-          setLoading(false);
-          setError(null);
-          
-        } catch (err) {
-          console.error(`Error processing ${collectionName} snapshot:`, err);
-          setError((err as Error).message);
-          setLoading(false);
-        }
-      },
-      (err) => {
-        console.error(`Error fetching ${collectionName}:`, err);
-        setError(err.message);
-        setLoading(false);
-        setConnectionStatus('disconnected');
-        
-        // Auto-retry connection after 3 seconds
-        setTimeout(() => {
-          setConnectionStatus('reconnecting');
-        }, 3000);
-      }
-    );
-
-    return () => unsubscribe();
   }, [collectionName, orderByField]);
 
-  // ENHANCED: All operations now have better error handling and retry logic
-  const add = useCallback(async (item: Omit<T, 'id'>) => {
+  const handleSnapshot = useCallback((snapshot: QuerySnapshot) => {
+    if (isUnmountedRef.current) return;
+
     try {
-      console.log(`Adding item to ${collectionName}:`, item);
+      setConnectionStatus('connected');
       
-      const collectionRef = collection(db, collectionName);
-      const processedItem = { ...item };
-      
-      // Convert Date objects to Firestore Timestamps
-      Object.keys(processedItem).forEach(key => {
-        if (processedItem[key] instanceof Date) {
-          processedItem[key] = Timestamp.fromDate(processedItem[key]);
-        }
+      const items: T[] = [];
+      snapshot.forEach(doc => {
+        const processedData = PerformanceOptimizer.processFirestoreData(doc.data());
+        items.push({ id: doc.id, ...processedData } as T);
       });
       
-      await addDoc(collectionRef, processedItem);
-      console.log(`Successfully added item to ${collectionName}`);
+      // Optimize: Only update if data actually changed
+      const newHash = JSON.stringify(items.map(item => ({ id: item.id, ...item })));
+      if (newHash !== dataHashRef.current) {
+        dataHashRef.current = newHash;
+        setData(items);
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`${collectionName}: Updated with ${items.length} items`);
+        }
+      }
       
+      setError(null);
     } catch (err) {
-      console.error(`Error adding to ${collectionName}:`, err);
-      setError((err as Error).message);
-      throw err;
+      console.error(`Error processing ${collectionName}:`, err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
     }
+  }, [collectionName]);
+
+  const handleError = useCallback((err: any) => {
+    if (isUnmountedRef.current) return;
+    
+    console.error(`${collectionName} subscription error:`, err);
+    setError(err.message);
+    setLoading(false);
+    setConnectionStatus('disconnected');
+    
+    setTimeout(() => {
+      if (!isUnmountedRef.current) {
+        setConnectionStatus('reconnecting');
+      }
+    }, 3000);
+  }, [collectionName]);
+
+  useEffect(() => {
+    isUnmountedRef.current = false;
+    
+    unsubscribeRef.current = onSnapshot(
+      queryRef,
+      { includeMetadataChanges: false },
+      handleSnapshot,
+      handleError
+    );
+
+    return () => {
+      isUnmountedRef.current = true;
+      unsubscribeRef.current?.();
+    };
+  }, [queryRef, handleSnapshot, handleError]);
+
+  const add = useCallback(async (item: Omit<T, 'id'>) => {
+    return RetryManager.executeWithRetry(async () => {
+      const processedItem = PerformanceOptimizer.prepareForFirestore(item);
+      const collectionRef = collection(db, collectionName);
+      await addDoc(collectionRef, processedItem);
+    });
   }, [collectionName]);
 
   const update = useCallback(async (id: string, updates: Partial<T>) => {
-    try {
-      console.log(`Updating ${collectionName}/${id}:`, updates);
-      
+    return RetryManager.executeWithRetry(async () => {
+      const processedUpdates = PerformanceOptimizer.prepareForFirestore(updates);
       const docRef = doc(db, collectionName, id);
-      const processedUpdates = { ...updates };
-      
-      // Convert Date objects to Firestore Timestamps
-      Object.keys(processedUpdates).forEach(key => {
-        if (processedUpdates[key] instanceof Date) {
-          processedUpdates[key] = Timestamp.fromDate(processedUpdates[key]);
-        }
-      });
-      
       await updateDoc(docRef, processedUpdates);
-      console.log(`Successfully updated ${collectionName}/${id}`);
-      
-    } catch (err) {
-      console.error(`Error updating ${collectionName}:`, err);
-      setError((err as Error).message);
-      throw err;
-    }
+    });
   }, [collectionName]);
 
   const remove = useCallback(async (id: string) => {
-    try {
-      console.log(`Removing ${collectionName}/${id}`);
+    return RetryManager.executeWithRetry(async () => {
       const docRef = doc(db, collectionName, id);
       await deleteDoc(docRef);
-      console.log(`Successfully removed ${collectionName}/${id}`);
-    } catch (err) {
-      console.error(`Error removing from ${collectionName}:`, err);
-      setError((err as Error).message);
-      throw err;
-    }
+    });
   }, [collectionName]);
 
   const removeMultiple = useCallback(async (ids: string[]) => {
-    try {
-      console.log(`Removing ${ids.length} items from ${collectionName}`);
-      const batch = writeBatch(db);
-      ids.forEach(id => {
-        const docRef = doc(db, collectionName, id);
-        batch.delete(docRef);
-      });
-      await batch.commit();
-      console.log(`Successfully removed ${ids.length} items from ${collectionName}`);
-    } catch (err) {
-      console.error(`Error removing multiple from ${collectionName}:`, err);
-      setError((err as Error).message);
-      throw err;
-    }
+    if (ids.length === 0) return;
+    
+    return RetryManager.executeWithRetry(async () => {
+      // Process in batches of 500 (Firestore limit)
+      const batchSize = 500;
+      const batches = [];
+      
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = writeBatch(db);
+        const batchIds = ids.slice(i, i + batchSize);
+        
+        batchIds.forEach(id => {
+          const docRef = doc(db, collectionName, id);
+          batch.delete(docRef);
+        });
+        
+        batches.push(batch.commit());
+      }
+      
+      await Promise.all(batches);
+    });
   }, [collectionName]);
 
   const clear = useCallback(async () => {
-    try {
-      console.log(`Clearing all items from ${collectionName}`);
-      const batch = writeBatch(db);
-      data.forEach(item => {
-        const docRef = doc(db, collectionName, item.id);
-        batch.delete(docRef);
-      });
-      await batch.commit();
-      console.log(`Successfully cleared ${collectionName}`);
-    } catch (err) {
-      console.error(`Error clearing ${collectionName}:`, err);
-      setError((err as Error).message);
-      throw err;
-    }
-  }, [collectionName, data]);
+    const ids = data.map(item => item.id);
+    if (ids.length === 0) return;
+    return removeMultiple(ids);
+  }, [data, removeMultiple]);
 
-  const forceRefresh = useCallback(async () => {
-    try {
-      console.log(`Force refreshing ${collectionName}`);
-      setLoading(true);
-      setConnectionStatus('reconnecting');
-      // The useEffect will re-establish the connection
-    } catch (err) {
-      console.error(`Error force refreshing ${collectionName}:`, err);
-      setError((err as Error).message);
-    }
-  }, [collectionName]);
+  const forceRefresh = useCallback(() => {
+    setLoading(true);
+    setConnectionStatus('reconnecting');
+    dataHashRef.current = '';
+  }, []);
 
-  return {
+  return useMemo(() => ({
     data,
     loading,
     error,
@@ -506,5 +498,5 @@ export function useFirestore<T extends { id: string }>(
     removeMultiple,
     clear,
     forceRefresh
-  };
+  }), [data, loading, error, connectionStatus, add, update, remove, removeMultiple, clear, forceRefresh]);
 }
