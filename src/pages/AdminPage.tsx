@@ -68,7 +68,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       setVipControlActive(vipProcessed);
       
       if (vipProcessed && !vipControlActive) {
-        console.log('Admin: VIP control detected, switching to monitoring mode');
+        console.log('Admin: VIP control terdeteksi, beralih ke mode monitoring');
       }
     };
     
@@ -92,7 +92,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     
     // ENHANCED: Handle VIP processed winners immediately
     if (drawingState.vipProcessedWinners && drawingState.currentWinners?.length > 0) {
-      console.log('Admin: VIP has processed winners, updating display');
+      console.log('Admin: VIP telah memproses pemenang, memperbarui tampilan');
       setCurrentWinners(drawingState.currentWinners);
       setShowConfetti(drawingState.showConfetti || false);
       setVipControlActive(true);
@@ -124,7 +124,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
   }, [participantsHook]);
 
   const clearAllParticipants = useCallback(() => {
-    if (window.confirm('Are you sure you want to clear all participants?')) {
+    if (window.confirm('Apakah Anda yakin ingin menghapus semua peserta?')) {
       participantsHook.clear();
     }
   }, [participantsHook]);
@@ -133,7 +133,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
   const startDrawing = useCallback(() => {
     if (participants.length === 0 || isDrawing) return;
     
-    console.log('Admin: Starting draw with participants:', participants.length);
+    console.log('Admin: Memulai undian dengan peserta:', participants.length);
     
     // Clear VIP flags when starting new draw
     setVipControlActive(false);
@@ -165,7 +165,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
   const stopDrawing = useCallback((finalWinners?: Winner[]) => {
     if (!isDrawing) return;
 
-    console.log('Admin: Processing final winners:', finalWinners);
+    console.log('Admin: Memproses pemenang akhir:', finalWinners);
 
     // ENHANCED: Check if VIP has already processed winners with multiple sources
     const vipProcessed = drawingState.vipProcessedWinners || 
@@ -174,13 +174,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
                         localStorage.getItem('vipProcessedWinners') === 'true';
     
     if (vipProcessed && (!finalWinners || finalWinners.length === 0)) {
-      console.log('Admin: VIP has processed winners, skipping database operations');
+      console.log('Admin: VIP telah memproses pemenang, melewati operasi database');
       
       // ENHANCED: Set current winners from drawing state with validation
       const winnersFromState = drawingState.currentWinners || drawingState.finalWinners || [];
       
       if (winnersFromState.length === 0) {
-        console.warn('Admin: No winners found in VIP processed state');
+        console.warn('Admin: Tidak ada pemenang yang ditemukan dalam status yang diproses VIP');
         setIsDrawing(false);
         return;
       }
@@ -194,9 +194,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       if (settings.soundEnabled) {
         try {
           const audio = new Audio('/celebration-sound.mp3');
-          audio.play().catch(() => console.log('Could not play sound'));
+          audio.play().catch(() => console.log('Tidak dapat memutar suara'));
         } catch (error) {
-          console.log('Sound not available');
+          console.log('Suara tidak tersedia');
         }
       }
       
@@ -206,7 +206,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
 
     // ENHANCED: Validate final winners before processing
     if (!finalWinners || finalWinners.length === 0) {
-      console.error('Admin: No final winners provided and VIP has not processed');
+      console.error('Admin: Tidak ada pemenang akhir yang diberikan dan VIP belum memproses');
       setIsDrawing(false);
       return;
     }
@@ -222,9 +222,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     
     if (uniqueNewWinners.length > 0) {
       uniqueNewWinners.forEach(winner => winnersHook.add(winner));
-      console.log('Admin: Added', uniqueNewWinners.length, 'new winners to database');
+      console.log('Admin: Menambahkan', uniqueNewWinners.length, 'pemenang baru ke database');
     } else {
-      console.log('Admin: All winners already exist in database');
+      console.log('Admin: Semua pemenang sudah ada dalam database');
     }
     
     // Update prize quota if prize was selected
@@ -253,9 +253,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     if (settings.soundEnabled) {
       try {
         const audio = new Audio('/celebration-sound.mp3');
-        audio.play().catch(() => console.log('Could not play sound'));
+        audio.play().catch(() => console.log('Tidak dapat memutar suara'));
       } catch (error) {
-        console.log('Sound not available');
+        console.log('Suara tidak tersedia');
       }
     }
     
@@ -264,7 +264,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
 
   // Clear current winners - MANUAL CONTROL
   const clearCurrentWinners = useCallback(() => {
-    console.log('Admin: Manually clearing current winners');
+    console.log('Admin: Membersihkan pemenang saat ini secara manual');
     
     setCurrentWinners([]);
     setShowConfetti(false); // Manual confetti control
@@ -292,7 +292,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     const newShowConfetti = !showConfetti;
     setShowConfetti(newShowConfetti);
     updateDrawingState({ showConfetti: newShowConfetti });
-    console.log('Admin: Manual confetti toggle:', newShowConfetti);
+    console.log('Admin: Toggle confetti manual:', newShowConfetti);
   }, [showConfetti, updateDrawingState]);
 
   // Prize management functions
@@ -321,7 +321,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
 
   // Prize selection handler
   const handleSelectPrize = useCallback((prize: Prize | null) => {
-    console.log('Admin: Prize selected:', prize?.name);
+    console.log('Admin: Hadiah dipilih:', prize?.name);
     setSelectedPrizeId(prize?.id || null);
     
     // Update Firebase state with selected prize
@@ -344,7 +344,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     const content = `
       <html>
         <head>
-          <title>Bayan Run 2025 - Winners List</title>
+          <title>Bayan Run 2025 - Daftar Pemenang</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; }
             h1 { color: #2563eb; }
@@ -353,16 +353,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
           </style>
         </head>
         <body>
-          <h1>Bayan Run 2025 - Doorprize Winners</h1>
-          <p>Generated on: ${new Date().toLocaleString()}</p>
+          <h1>Bayan Run 2025 - Pemenang Doorprize</h1>
+          <p>Dibuat pada: ${new Date().toLocaleString()}</p>
           ${winners.reduce((acc, winner, index) => {
             const prizeSection = winner.prizeName && !acc.includes(winner.prizeName) ? 
               `<div class="prize-section"><h2>🏆 ${winner.prizeName}</h2></div>` : '';
             return acc + prizeSection + `
               <div class="winner">
                 <strong>${index + 1}. ${winner.name}</strong><br>
-                <small>Won on: ${new Date(winner.wonAt).toLocaleString()}</small>
-                ${winner.prizeName ? `<br><em>Prize: ${winner.prizeName}</em>` : ''}
+                <small>Menang pada: ${new Date(winner.wonAt).toLocaleString()}</small>
+                ${winner.prizeName ? `<br><em>Hadiah: ${winner.prizeName}</em>` : ''}
               </div>
             `;
           }, '')}
@@ -428,13 +428,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-blue-800">Halaman Display</h3>
-              <p className="text-blue-600">Buka Halaman ini untuk menampilkan ke para pengunjung</p>
+              <p className="text-blue-600">Buka halaman ini untuk menampilkan ke para pengunjung</p>
             </div>
             <button
               onClick={openDisplayPage}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
             >
-              Display
+              Buka Display
             </button>
           </div>
         </div>
@@ -444,19 +444,19 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
           <div className="mb-6 p-4 bg-purple-100 border border-purple-300 rounded-lg">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-purple-800">VIP Control Active</h3>
+                <h3 className="text-lg font-semibold text-purple-800">Kontrol VIP Aktif</h3>
                 <p className="text-purple-600">
-                  Drawing is being controlled by VIP panel. Winners processed automatically.
+                  Undian sedang dikontrol oleh panel VIP. Pemenang diproses secara otomatis.
                   {localStorage.getItem('vipDrawSession') && (
                     <span className="block text-sm mt-1">
-                      Session: {localStorage.getItem('vipDrawSession')?.slice(-8)}
+                      Sesi: {localStorage.getItem('vipDrawSession')?.slice(-8)}
                     </span>
                   )}
                 </p>
               </div>
               <div className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-full text-sm font-medium">
                 <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                VIP Mode
+                Mode VIP
               </div>
             </div>
           </div>
@@ -470,9 +470,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
                 <h3 className="text-lg font-semibold text-green-800">Kontrol Manual Display</h3>
                 <p className="text-green-600">
                   Tampilan pemenang saat ini aktif - kontrol penuh ada di tangan admin
-                  {vipControlActive && <span className="text-purple-600 font-medium"> (Processed by VIP)</span>}
+                  {vipControlActive && <span className="text-purple-600 font-medium"> (Diproses oleh VIP)</span>}
                   <span className="block text-sm mt-1">
-                    {currentWinners.length} winner{currentWinners.length > 1 ? 's' : ''} displayed
+                    {currentWinners.length} pemenang ditampilkan
                   </span>
                 </p>
               </div>
@@ -485,13 +485,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
                       : 'bg-gray-600 text-white hover:bg-gray-700'
                   }`}
                 >
-                  {showConfetti ? 'Stop Confetti' : 'Start Confetti'}
+                  {showConfetti ? 'Stop Confetti' : 'Mulai Confetti'}
                 </button>
                 <button
                   onClick={clearCurrentWinners}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
                 >
-                  Clear Display
+                  Bersihkan Display
                 </button>
               </div>
             </div>
@@ -513,10 +513,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
                   className="w-5 h-5 border-2 border-yellow-600 border-t-transparent rounded-full"
                 />
                 <div>
-                  <h3 className="text-lg font-semibold text-yellow-800">Natural Slowdown Active</h3>
+                  <h3 className="text-lg font-semibold text-yellow-800">Perlambatan Natural Aktif</h3>
                   <p className="text-yellow-600">
                     Animasi sedang melambat secara natural menuju pemenang yang sudah ditentukan...
-                    {vipControlActive && <span className="text-purple-600 font-medium"> (VIP Controlled)</span>}
+                    {vipControlActive && <span className="text-purple-600 font-medium"> (Dikontrol VIP)</span>}
                   </p>
                 </div>
               </div>
