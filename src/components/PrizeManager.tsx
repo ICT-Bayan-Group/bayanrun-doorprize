@@ -202,7 +202,7 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
                   type="submit"
                   className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                 >
-                  {editingPrize ? 'Update Prize' : 'Tambah'}
+                  {editingPrize ? 'Update' : 'Tambah'}
                 </button>
                 <button
                   type="button"
@@ -222,7 +222,7 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
         <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-green-800">Selected Prize for Next Draw</h3>
+              <h3 className="font-semibold text-green-800">Hadiah terpilih untuk undian</h3>
               <p className="text-green-700">{selectedPrize.name}</p>
               <p className="text-sm text-green-600">
                 Kuota Tersisa: {selectedPrize.remainingQuota}/{selectedPrize.quota}

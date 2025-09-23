@@ -172,7 +172,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         status: 'error',
         processedCount: 0,
         totalCount: winnerParticipantIds.length,
-        error: 'Failed to remove winners from participant list'
+        error: 'Gagal menghapus pemenang dari daftar peserta'
       });
 
       // Reset error status after showing it
@@ -189,19 +189,19 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
   // Enhanced draw validation
   const validateDraw = useCallback((): { isValid: boolean; message?: string } => {
     if (vipControlActive && vipControlStatus === 'active') {
-      return { isValid: false, message: 'VIP is currently controlling the draw. Please wait.' };
+      return { isValid: false, message: 'VIP sedang mengontrol undian. Silakan tunggu.' };
     }
     if (!selectedPrize) {
-      return { isValid: false, message: 'Please select a prize before starting the draw.' };
+      return { isValid: false, message: 'Silakan pilih hadiah sebelum memulai undian.' };
     }
     if (selectedPrize.remainingQuota === 0) {
-      return { isValid: false, message: 'This prize has no remaining quota.' };
+      return { isValid: false, message: 'Hadiah ini tidak memiliki kuota tersisa.' };
     }
     if (availableParticipants.length === 0) {
-      return { isValid: false, message: 'No participants available for drawing (all have already won).' };
+      return { isValid: false, message: 'Tidak ada peserta yang tersedia untuk undian (semua sudah menang).' };
     }
     if (drawCount === 0) {
-      return { isValid: false, message: 'No winners can be drawn with current settings.' };
+      return { isValid: false, message: 'Tidak ada pemenang yang dapat diundi dengan pengaturan saat ini.' };
     }
     return { isValid: true };
   }, [selectedPrize, availableParticipants, drawCount, vipControlActive, vipControlStatus]);
@@ -227,7 +227,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
   const handleDrawClick = useCallback(() => {
     // Check if VIP is currently controlling
     if (vipControlActive && vipControlStatus !== 'completed') {
-      alert('VIP is currently controlling the draw. Please wait for VIP to complete or use VIP panel.');
+      alert('VIP sedang mengontrol undian. Silakan tunggu VIP selesai atau gunakan panel VIP.');
       return;
     }
 
@@ -237,13 +237,13 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
       return;
     }
     
-    console.log('Admin: Starting draw with prize:', selectedPrize);
+    console.log('Admin: Memulai undian dengan hadiah:', selectedPrize);
     
     // Generate winners immediately and store them
     const finalWinners = generateWinners();
     setPredeterminedWinners(finalWinners);
     
-    console.log('Admin: Pre-determined winners:', finalWinners);
+    console.log('Admin: Pemenang yang telah ditentukan:', finalWinners);
     
     // Update Firebase state with pre-determined winners
     updateDrawingState({
@@ -276,11 +276,11 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
   // Start spinning animation
   const handleStartSpinning = useCallback(() => {
     if (vipControlActive && vipControlStatus === 'active') {
-      alert('VIP is controlling the draw. Use VIP panel to control spinning.');
+      alert('VIP mengontrol undian. Gunakan panel VIP untuk mengontrol spinning.');
       return;
     }
 
-    console.log('Admin: Starting spinning animation with pre-determined winners:', predeterminedWinners);
+    console.log('Admin: Memulai animasi spinning dengan pemenang yang telah ditentukan:', predeterminedWinners);
     
     updateDrawingState({
       shouldStartSpinning: true,
@@ -296,7 +296,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     const vipSession = localStorage.getItem('vipDrawSession');
     
     if (vipProcessed || (vipControlActive && vipControlStatus === 'completed')) {
-      console.log('Admin: VIP has already processed winners, just updating UI');
+      console.log('Admin: VIP telah memproses pemenang, hanya mengupdate UI');
       
       // VIP has processed - just update UI state without database operations
       updateDrawingState({
@@ -321,10 +321,10 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     }
 
     // Standard admin processing
-    console.log('Admin: Starting natural slowdown to pre-determined winners:', predeterminedWinners);
+    console.log('Admin: Memulai perlambatan natural ke pemenang yang telah ditentukan:', predeterminedWinners);
     
     if (predeterminedWinners.length === 0) {
-      console.error('Admin: No pre-determined winners found!');
+      console.error('Admin: Tidak ada pemenang yang telah ditentukan!');
       return;
     }
     
@@ -337,7 +337,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     
     // After 3.5 seconds, finalize results
     setTimeout(() => {
-      console.log('Admin: Finalizing results after natural slowdown');
+      console.log('Admin: Menyelesaikan hasil setelah perlambatan natural');
       
       updateDrawingState({
         isDrawing: false,
@@ -367,7 +367,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
   const handleDeleteClick = () => setShowDeleteConfirm(true);
   
   const handleConfirmDelete = () => {
-    console.log('Admin: Clearing winners');
+    console.log('Admin: Membersihkan pemenang');
     
     // Clear pre-determined winners
     setPredeterminedWinners([]);
@@ -418,8 +418,8 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                   : 'bg-purple-100 text-purple-700'
             }`}>
               <Shield className="w-3 h-3" />
-              {vipControlStatus === 'completed' ? 'VIP Completed' : 
-               vipControlStatus === 'active' ? 'VIP Active' : 'VIP Control'}
+              {vipControlStatus === 'completed' ? 'VIP Selesai' : 
+               vipControlStatus === 'active' ? 'VIP Aktif' : 'Kontrol VIP'}
             </div>
           )}
         </h2>
@@ -453,23 +453,23 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                 vipControlStatus === 'completed' ? 'text-green-800' : 
                 vipControlStatus === 'active' ? 'text-yellow-800' : 'text-purple-800'
               }`}>
-                {vipControlStatus === 'completed' ? 'VIP Control Completed' : 
-                 vipControlStatus === 'active' ? 'VIP Control Active' : 'VIP Control Mode'}
+                {vipControlStatus === 'completed' ? 'Kontrol VIP Selesai' : 
+                 vipControlStatus === 'active' ? 'Kontrol VIP Aktif' : 'Mode Kontrol VIP'}
               </p>
               <p className={`text-sm ${
                 vipControlStatus === 'completed' ? 'text-green-600' : 
                 vipControlStatus === 'active' ? 'text-yellow-600' : 'text-purple-600'
               }`}>
                 {vipControlStatus === 'completed' 
-                  ? 'Winners have been processed by VIP panel. You can clear display or manage results.'
+                  ? 'Pemenang telah diproses oleh panel VIP. Anda dapat membersihkan tampilan atau mengelola hasil.'
                   : vipControlStatus === 'active' 
-                    ? 'Drawing is currently being controlled by VIP panel. Please wait or use VIP panel.'
-                    : 'Drawing may be controlled by VIP panel. Winners will be processed automatically.'
+                    ? 'Undian saat ini dikontrol oleh panel VIP. Silakan tunggu atau gunakan panel VIP.'
+                    : 'Undian dapat dikontrol oleh panel VIP. Pemenang akan diproses secara otomatis.'
                 }
               </p>
               {localStorage.getItem('vipDrawSession') && (
                 <p className="text-xs mt-1 opacity-75">
-                  Session: {localStorage.getItem('vipDrawSession')?.slice(-8)}
+                  Sesi: {localStorage.getItem('vipDrawSession')?.slice(-8)}
                 </p>
               )}
             </div>
@@ -504,13 +504,13 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                   Hadiah Terpilih
                 </span>
                 <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
-                  Live Update
+                  Update Langsung
                 </span>
               </div>
               <h3 className="font-semibold text-purple-800 text-lg">{selectedPrize.name}</h3>
               <p className="text-purple-600 text-sm flex items-center gap-2">
                 <Target className="w-4 h-4" />
-                Draw {drawCount} pemenang{drawCount !== 1 ? 's' : ''} 
+                Undi {drawCount} pemenang 
                 ({selectedPrize.remainingQuota} tersisa)
               </p>
             </div>
@@ -612,12 +612,12 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                 'text-red-800'
               }`}>
                 {winnerProcessing.status === 'processing' && 
-                  `Processing Winners (${winnerProcessing.processedCount}/${winnerProcessing.totalCount})`
+                  `Memproses Pemenang (${winnerProcessing.processedCount}/${winnerProcessing.totalCount})`
                 }
                 {winnerProcessing.status === 'success' && 
-                  `Successfully processed ${winnerProcessing.totalCount} winner${winnerProcessing.totalCount > 1 ? 's' : ''}`
+                  `Berhasil memproses ${winnerProcessing.totalCount} pemenang`
                 }
-                {winnerProcessing.status === 'error' && 'Processing Failed'}
+                {winnerProcessing.status === 'error' && 'Pemrosesan Gagal'}
               </p>
               
               {winnerProcessing.status === 'processing' && (
@@ -641,7 +641,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
               
               {winnerProcessing.status === 'error' && (
                 <p className="text-red-600 text-sm">
-                  {winnerProcessing.error || 'An error occurred while processing winners'}
+                  {winnerProcessing.error || 'Terjadi kesalahan saat memproses pemenang'}
                 </p>
               )}
             </div>
@@ -664,12 +664,12 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
             >
               <Play className="w-5 h-5 mr-2" />
               {vipControlActive && vipControlStatus === 'active'
-                ? 'VIP is Active'
+                ? 'VIP Mengontrol'
                 : !selectedPrize 
                   ? 'Pilih Hadiah' 
                   : availableParticipants.length === 0 
-                    ? 'No Available Participants' 
-                    : `Generate Winners (${drawCount})`
+                    ? 'Tidak Ada Peserta' 
+                    : `Siapkan Hadiah (${drawCount})`
               }
             </button>
           ) : (
@@ -680,7 +680,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                 className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex-1 justify-center disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 <Play className="w-5 h-5 mr-2" />
-                {vipControlActive && vipControlStatus === 'active' ? 'VIP Controlled' : 'Mulai Spinning!'}
+                {vipControlActive && vipControlStatus === 'active' ? 'VIP Mengontrol' : 'Mulai Spinning!'}
               </button>
               
               <button
@@ -689,7 +689,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                 className="flex items-center px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex-1 justify-center disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 <Square className="w-5 h-5 mr-2" />
-                {vipControlActive && vipControlStatus === 'completed' ? 'Process VIP Results' : 'Natural Stop (3s)'}
+                {vipControlActive && vipControlStatus === 'completed' ? 'Proses Hasil VIP' : 'Stop Undian'}
               </button>
             </div>
           )}
@@ -698,7 +698,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
             <button
               onClick={handleDeleteClick}
               className="flex items-center px-4 py-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg font-semibold transition-all duration-200 hover:shadow-md"
-              title="Bersihkan Data Pemenang"
+              title="Hapus Data Pemenang"
             >
               <Trash2 className="w-5 h-5" />
             </button>
@@ -721,8 +721,8 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                 />
                 <span className="text-blue-600 font-medium">
                   {predeterminedWinners.length > 0 
-                    ? 'Pemenang siap! Klik "Mulai Spinning" → "Natural Stop" untuk efek realistis!'
-                    : 'Generating winners... Silakan tunggu!'
+                    ? 'Pemenang siap! Klik "Mulai Spinning" → "Stop Undian" untuk efek realistis!'
+                    : 'Menentukan pemenang... Silakan tunggu!'
                   }
                 </span>
               </div>
@@ -731,8 +731,8 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                   vipControlStatus === 'completed' ? 'text-green-600' : 
                   vipControlStatus === 'active' ? 'text-yellow-600' : 'text-purple-600'
                 }`}>
-                  {vipControlStatus === 'completed' ? 'VIP Completed' : 
-                   vipControlStatus === 'active' ? 'VIP Active' : 'VIP Control Mode'}
+                  {vipControlStatus === 'completed' ? 'VIP Selesai' : 
+                   vipControlStatus === 'active' ? 'VIP Aktif' : 'Mode Kontrol VIP'}
                 </span>
               )}
             </div>
@@ -758,11 +758,11 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
             </div>
 
             <p className="text-gray-600 mb-6">
-              Apakah Anda yakin ingin menghapus semua pemenang saat ini? Ini akan menghapus {currentWinners.length} winner{currentWinners.length !== 1 ? 's' : ''} dari tampilan.
+              Apakah Anda yakin ingin menghapus semua pemenang saat ini? Ini akan menghapus {currentWinners.length} pemenang dari tampilan.
               <strong className="text-red-600"> Catatan: Ini TIDAK akan mengembalikan pemenang ke daftar peserta.</strong>
               {vipControlActive && (
                 <span className="block mt-2 text-purple-600 font-medium">
-                  This will also clear VIP control status.
+                  Ini juga akan membersihkan status kontrol VIP.
                 </span>
               )}
             </p>
@@ -778,7 +778,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                 onClick={handleConfirmDelete}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
               >
-                Hapus 
+                Hapus
               </button>
             </div>
           </motion.div>
@@ -796,7 +796,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                 <span className={`text-xs font-medium ${
                   vipControlStatus === 'completed' ? 'text-green-600' : 'text-purple-600'
                 }`}>
-                  {vipControlStatus === 'completed' ? '(VIP Processed)' : '(VIP Control)'}
+                  {vipControlStatus === 'completed' ? '(Diproses VIP)' : '(Kontrol VIP)'}
                 </span>
               )}
             </h3>
@@ -824,7 +824,7 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
                     <div>
                       <p className="font-semibold text-gray-800">{winner.name}</p>
                       <p className="text-xs text-gray-500">
-                        {vipControlActive && vipControlStatus === 'completed' ? 'VIP Processed' : 'Admin Processed'}
+                        {vipControlActive && vipControlStatus === 'completed' ? 'Diproses VIP' : 'Diproses Admin'}
                       </p>
                     </div>
                   </div>

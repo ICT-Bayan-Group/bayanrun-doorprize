@@ -141,16 +141,16 @@ const VipPage: React.FC = () => {
   // Enhanced: Draw validation from MultiDrawingArea
   const validateDraw = useCallback((): { isValid: boolean; message?: string } => {
     if (!selectedPrize) {
-      return { isValid: false, message: 'Please select a prize before starting the draw.' };
+      return { isValid: false, message: 'Silakan pilih hadiah sebelum memulai undian.' };
     }
     if (selectedPrize.remainingQuota === 0) {
-      return { isValid: false, message: 'This prize has no remaining quota.' };
+      return { isValid: false, message: 'Hadiah ini tidak memiliki kuota tersisa.' };
     }
     if (availableParticipants.length === 0) {
-      return { isValid: false, message: 'No participants available for drawing (all have already won).' };
+      return { isValid: false, message: 'Tidak ada peserta yang tersedia untuk undian (semua sudah menang).' };
     }
     if (drawCount === 0) {
-      return { isValid: false, message: 'No winners can be drawn with current settings.' };
+      return { isValid: false, message: 'Tidak ada pemenang yang dapat diundi dengan pengaturan saat ini.' };
     }
     return { isValid: true };
   }, [selectedPrize, availableParticipants, drawCount]);
@@ -181,14 +181,14 @@ const VipPage: React.FC = () => {
     
     try {
       setProcessingStatus('saving');
-      console.log('VIP: Saving winners to database:', winners);
+      console.log('VIP: Menyimpan pemenang ke database:', winners);
       
       const existingWinners = winnersHook.data.filter(w => 
         w.drawSession === lastDrawSession
       );
       
       if (existingWinners.length > 0) {
-        console.log('VIP: Winners already exist for this session, skipping save');
+        console.log('VIP: Pemenang sudah ada untuk sesi ini, melewati penyimpanan');
         return true;
       }
       
@@ -197,10 +197,10 @@ const VipPage: React.FC = () => {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       
-      console.log('VIP: Successfully saved all winners');
+      console.log('VIP: Berhasil menyimpan semua pemenang');
       return true;
     } catch (error) {
-      console.error('VIP: Error saving winners:', error);
+      console.error('VIP: Error menyimpan pemenang:', error);
       setProcessingStatus('error');
       return false;
     }
@@ -218,7 +218,7 @@ const VipPage: React.FC = () => {
         remainingQuota: newQuota
       });
       
-      console.log('VIP: Updated prize quota:', { prizeId: prize.id, newQuota });
+      console.log('VIP: Kuota hadiah diperbarui:', { prizeId: prize.id, newQuota });
       
       if (newQuota <= 0) {
         setSelectedPrizeId(null);
@@ -229,7 +229,7 @@ const VipPage: React.FC = () => {
       
       return true;
     } catch (error) {
-      console.error('VIP: Error updating prize quota:', error);
+      console.error('VIP: Error memperbarui kuota hadiah:', error);
       return false;
     }
   }, [prizes, prizesHook, updateDrawingState]);
@@ -237,7 +237,7 @@ const VipPage: React.FC = () => {
   // Enhanced: Main button handler with MultiDrawingArea logic adapted for single button
   const handleMainButton = useCallback(async () => {
     if (isProcessing && drawingPhase !== 'spinning' && drawingPhase !== 'generated') {
-      console.log('VIP: Already processing, ignoring button click');
+      console.log('VIP: Sedang memproses, mengabaikan klik tombol');
       return;
     }
     
@@ -253,12 +253,12 @@ const VipPage: React.FC = () => {
       setProcessingStatus('generating');
       setVipControlActive(true);
       
-      console.log('VIP: Starting draw with prize:', selectedPrize);
+      console.log('VIP: Memulai undian dengan hadiah:', selectedPrize);
       
       const finalWinners = generateWinners();
       setPredeterminedWinners(finalWinners);
       
-      console.log('VIP: Pre-determined winners:', finalWinners);
+      console.log('VIP: Pemenang yang telah ditentukan:', finalWinners);
       
       await updateDrawingState({
         isDrawing: true,
@@ -288,7 +288,7 @@ const VipPage: React.FC = () => {
 
     } else if (drawingPhase === 'generated') {
       // Step 2: Start Spinning (like handleStartSpinning in MultiDrawingArea)
-      console.log('VIP: Starting spinning animation with pre-determined winners:', predeterminedWinners);
+      console.log('VIP: Memulai animasi spinning dengan pemenang yang telah ditentukan:', predeterminedWinners);
       
       setProcessingStatus('spinning');
       
@@ -309,7 +309,7 @@ const VipPage: React.FC = () => {
       setProcessingStatus('stopping');
       setDrawingPhase('stopping');
       
-      console.log('VIP: Initiating stop sequence with winners:', predeterminedWinners);
+      console.log('VIP: Memulai urutan stop dengan pemenang:', predeterminedWinners);
       
       await updateDrawingState({
         shouldStartSlowdown: true,
@@ -319,7 +319,7 @@ const VipPage: React.FC = () => {
       });
       
       setTimeout(async () => {
-        console.log('VIP: Finalizing results after natural slowdown');
+        console.log('VIP: Menyelesaikan hasil setelah perlambatan natural');
         
         const saveSuccess = await saveWinnersToDatabase(predeterminedWinners);
         if (!saveSuccess) {
@@ -348,7 +348,7 @@ const VipPage: React.FC = () => {
         localStorage.setItem('vipProcessedWinners', 'true');
         localStorage.setItem('vipDrawSession', lastDrawSession || '');
         
-        console.log('VIP: All processing complete, winners saved and displayed');
+        console.log('VIP: Semua pemrosesan selesai, pemenang disimpan dan ditampilkan');
         
         setProcessingStatus('complete');
         setIsDrawing(false);
@@ -364,10 +364,10 @@ const VipPage: React.FC = () => {
   const getButtonConfig = () => {
     if (isProcessing) {
       return {
-        text: processingStatus === 'generating' ? 'GENERATING WINNERS...' : 
-              processingStatus === 'spinning' ? 'STARTING SPIN...' :
-              processingStatus === 'stopping' ? 'STOPPING...' : 
-              processingStatus === 'saving' ? 'SAVING...' : 'PROCESSING...',
+        text: processingStatus === 'generating' ? 'MENENTUKAN PEMENANG...' : 
+              processingStatus === 'spinning' ? 'MEMULAI PUTAR...' :
+              processingStatus === 'stopping' ? 'MENGHENTIKAN...' : 
+              processingStatus === 'saving' ? 'MENYIMPAN...' : 'MEMPROSES...',
         colors: 'from-yellow-500 to-orange-600',
         disabled: true,
         glowColor: 'from-yellow-400/20 to-orange-500/20',
@@ -379,27 +379,27 @@ const VipPage: React.FC = () => {
       case 'ready':
         const canStart = selectedPrize && availableParticipants.length > 0;
         return {
-          text: canStart ? `GENERATE ${drawCount} WINNERS` : 'SELECT PRIZE FIRST',
+          text: canStart ? `SIAPKAN ${drawCount} UNDIAN` : 'PILIH HADIAH TERLEBIH DAHULU',
           colors: canStart 
-            ? 'from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500'
+            ? 'from-green-500 to-green-600 hover:from-green-400 hover:to-green-500'
             : 'from-gray-600 to-gray-700',
           disabled: !canStart,
-          glowColor: 'from-blue-400/20 to-cyan-500/20',
+          glowColor: 'from-green-400/20 to-green-500/20',
           icon: <Play className="w-16 h-16" />
         };
         
       case 'generated':
         return {
-          text: 'START SPINNING',
-          colors: 'from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500',
+          text: 'MULAI UNDIAN',
+          colors: 'from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500',
           disabled: false,
-          glowColor: 'from-green-400/20 to-emerald-500/20',
+          glowColor: 'from-blue-400/20 to-indigo-500/20',
           icon: <Zap className="w-16 h-16" />
         };
         
       case 'spinning':
         return {
-          text: 'STOP & REVEAL WINNERS',
+          text: 'STOP UNDIAN',
           colors: 'from-red-500 to-pink-600 hover:from-red-400 hover:to-pink-500',
           disabled: false,
           glowColor: 'from-red-400/20 to-pink-500/20',
@@ -408,7 +408,7 @@ const VipPage: React.FC = () => {
         
       case 'stopping':
         return {
-          text: 'FINALIZING RESULTS...',
+          text: 'MENYIMPAN HASIL...',
           colors: 'from-orange-500 to-red-600',
           disabled: true,
           glowColor: 'from-orange-400/20 to-red-500/20',
@@ -417,7 +417,7 @@ const VipPage: React.FC = () => {
         
       default:
         return {
-          text: 'READY',
+          text: 'SIAP',
           colors: 'from-gray-600 to-gray-700',
           disabled: true,
           glowColor: 'from-gray-400/20 to-gray-500/20',
@@ -445,8 +445,8 @@ const VipPage: React.FC = () => {
           }`}>
             <Shield className="w-4 h-4" />
             <span className="text-sm font-medium">
-              {vipControlStatus === 'completed' ? 'VIP Completed' :
-               vipControlStatus === 'active' ? 'VIP Active' : 'VIP Control'}
+              {vipControlStatus === 'completed' ? 'VIP Selesai' :
+               vipControlStatus === 'active' ? 'VIP Aktif' : 'Kontrol VIP'}
             </span>
             {processingStatus === 'complete' && (
               <CheckCircle className="w-4 h-4 text-green-300" />
@@ -464,7 +464,7 @@ const VipPage: React.FC = () => {
           <div className="flex items-center gap-2 px-4 py-2 bg-blue-600/90 backdrop-blur-sm text-white rounded-full shadow-lg">
             <Clock className="w-4 h-4" />
             <span className="text-sm font-medium">
-              Drawing: {formatTime(drawingDuration)}
+              Undian: {formatTime(drawingDuration)}
             </span>
           </div>
         </div>
@@ -483,7 +483,7 @@ const VipPage: React.FC = () => {
             {settings.eventLogo && (
               <img
                 src={settings.eventLogo}
-                alt="Event Logo"
+                alt="Logo Event"
                 className="h-32 w-auto"
               />
             )}
@@ -542,11 +542,11 @@ const VipPage: React.FC = () => {
           className="absolute bottom-8 left-0 right-0 text-center"
         >
           <p className="text-white/50 text-sm">
-            VIP Control Panel • Bayan Run 2025
+            Panel Kontrol VIP • Bayan Run 2025
           </p>
           {vipControlActive && (
             <p className="text-purple-300 text-xs mt-1">
-              VIP Control Mode Active • Session: {lastDrawSession?.slice(-8)}
+              Mode Kontrol VIP Aktif 
             </p>
           )}
           
