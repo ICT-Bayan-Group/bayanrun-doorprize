@@ -4,13 +4,13 @@ import { getAuth } from 'firebase/auth';
 
 // Konfigurasi Firebase - GANTI dengan konfigurasi project Anda
 const firebaseConfig = {
-    apiKey: "AIzaSyDv1b38emmhQvBPO1d7wkcnODpzW_fZ5-Q",
-  authDomain: "bayan-doorprize-5ae13.firebaseapp.com",
-  projectId: "bayan-doorprize-5ae13",
-  storageBucket: "bayan-doorprize-5ae13.firebasestorage.app",
-  messagingSenderId: "1030214269167",
-  appId: "1:1030214269167:web:2ca4c65bed4774c32b431a",
-  measurementId: "G-LK22F88TZ3"
+    apiKey: "AIzaSyDWRZ7yQV0l-IvcmBrkZMARrc1naxJgzgk",
+  authDomain: "bayan-doorprize.firebaseapp.com",
+  projectId: "bayan-doorprize",
+  storageBucket: "bayan-doorprize.firebasestorage.app",
+  messagingSenderId: "479004864368",
+  appId: "1:479004864368:web:fb65c95b4cb697540869b5",
+  measurementId: "G-3MXKJ6C2W5"
 };
 
 // Initialize Firebase
