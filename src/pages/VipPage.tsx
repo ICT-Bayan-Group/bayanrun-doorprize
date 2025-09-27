@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Square, Zap, Shield, CheckCircle, AlertTriangle, Play, Clock, Target, Trophy, Users, Gift } from 'lucide-react';
+import { Square, Zap, Shield, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
 import { useFirestore } from '../hooks/useFirestore';
 import { useFirebaseDrawingState } from '../hooks/useFirebaseDrawingState';
 import { Participant, Winner, Prize, AppSettings } from '../types';
@@ -29,10 +29,10 @@ const VipPage: React.FC = () => {
   const [isDrawing, setIsDrawing] = useState(drawingState.isDrawing || false);
   const [predeterminedWinners, setPredeterminedWinners] = useState<Winner[]>([]);
   const [selectedPrizeId, setSelectedPrizeId] = useState<string | null>(drawingState.selectedPrizeId || null);
-  const [drawingPhase, setDrawingPhase] = useState<'ready' | 'generated' | 'spinning' | 'stopping'>('ready');
+  const [drawingPhase, setDrawingPhase] = useState<'spinning' | 'generated'>('generated');
   const [drawingDuration, setDrawingDuration] = useState(0);
   
-  // VIP control state management - Enhanced from MultiDrawingArea
+  // VIP control state management
   const [vipControlActive, setVipControlActive] = useState(false);
   const [vipControlStatus, setVipControlStatus] = useState<'idle' | 'active' | 'processing' | 'completed'>('idle');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -107,18 +107,16 @@ const VipPage: React.FC = () => {
       setSelectedPrizeId(drawingState.selectedPrizeId);
     }
     
-    // Enhanced phase management
+    // Simplified phase management - only 'generated' or 'spinning'
     if (!drawingState.isDrawing) {
-      setDrawingPhase('ready');
+      setDrawingPhase('generated');
       setVipControlActive(false);
       setIsProcessing(false);
       setProcessingStatus('idle');
-    } else if (drawingState.predeterminedWinners?.length > 0 && !drawingState.shouldStartSpinning) {
-      setDrawingPhase('generated');
-    } else if (drawingState.shouldStartSpinning && !drawingState.shouldStartSlowdown) {
+    } else if (drawingState.shouldStartSpinning) {
       setDrawingPhase('spinning');
-    } else if (drawingState.shouldStartSlowdown) {
-      setDrawingPhase('stopping');
+    } else {
+      setDrawingPhase('generated');
     }
     
     const vipProcessed = drawingState.vipProcessedWinners || false;
@@ -138,7 +136,7 @@ const VipPage: React.FC = () => {
     }
   }, [prizes, selectedPrizeId]);
 
-  // Enhanced: Draw validation from MultiDrawingArea
+  // Enhanced: Draw validation
   const validateDraw = useCallback((): { isValid: boolean; message?: string } => {
     if (!selectedPrize) {
       return { isValid: false, message: 'Silakan pilih hadiah sebelum memulai undian.' };
@@ -155,7 +153,7 @@ const VipPage: React.FC = () => {
     return { isValid: true };
   }, [selectedPrize, availableParticipants, drawCount]);
 
-  // Enhanced: Generate winners function from MultiDrawingArea
+  // Enhanced: Generate winners function
   const generateWinners = useCallback((): Winner[] => {
     if (!selectedPrize || availableParticipants.length === 0) return [];
 
@@ -234,15 +232,15 @@ const VipPage: React.FC = () => {
     }
   }, [prizes, prizesHook, updateDrawingState]);
 
-  // Enhanced: Main button handler with MultiDrawingArea logic adapted for single button
+  // Simplified: Main button handler - only start and stop
   const handleMainButton = useCallback(async () => {
-    if (isProcessing && drawingPhase !== 'spinning' && drawingPhase !== 'generated') {
+    if (isProcessing) {
       console.log('VIP: Sedang memproses, mengabaikan klik tombol');
       return;
     }
     
-    if (drawingPhase === 'ready') {
-      // Step 1: Generate Winners (like handleDrawClick in MultiDrawingArea)
+    if (drawingPhase === 'generated') {
+      // Start Drawing - Generate winners and start spinning
       const validation = validateDraw();
       if (!validation.isValid) {
         alert(validation.message);
@@ -264,7 +262,7 @@ const VipPage: React.FC = () => {
         isDrawing: true,
         currentWinners: [],
         showConfetti: false,
-        shouldStartSpinning: false,
+        shouldStartSpinning: true,
         showWinnerDisplay: false,
         selectedPrizeName: selectedPrize?.name,
         selectedPrizeImage: selectedPrize?.image,
@@ -282,32 +280,16 @@ const VipPage: React.FC = () => {
       localStorage.removeItem('vipDrawSession');
       
       setIsDrawing(true);
-      setDrawingPhase('generated');
+      setDrawingPhase('spinning');
       setProcessingStatus('complete');
       setIsProcessing(false);
 
-    } else if (drawingPhase === 'generated') {
-      // Step 2: Start Spinning (like handleStartSpinning in MultiDrawingArea)
-      console.log('VIP: Memulai animasi spinning dengan pemenang yang telah ditentukan:', predeterminedWinners);
-      
-      setProcessingStatus('spinning');
-      
-      await updateDrawingState({
-        shouldStartSpinning: true,
-        isDrawing: true,
-        predeterminedWinners: predeterminedWinners
-      });
-      
-      setDrawingPhase('spinning');
-      setProcessingStatus('complete');
-
     } else if (drawingPhase === 'spinning') {
-      // Step 3: Stop Drawing (like handleStopDrawClick in MultiDrawingArea)
+      // Stop Drawing
       if (predeterminedWinners.length === 0) return;
 
       setIsProcessing(true);
       setProcessingStatus('stopping');
-      setDrawingPhase('stopping');
       
       console.log('VIP: Memulai urutan stop dengan pemenang:', predeterminedWinners);
       
@@ -325,7 +307,6 @@ const VipPage: React.FC = () => {
         if (!saveSuccess) {
           setProcessingStatus('error');
           setIsProcessing(false);
-          setDrawingPhase('spinning');
           return;
         }
         
@@ -353,19 +334,18 @@ const VipPage: React.FC = () => {
         setProcessingStatus('complete');
         setIsDrawing(false);
         setPredeterminedWinners([]);
-        setDrawingPhase('ready');
+        setDrawingPhase('generated');
         setIsProcessing(false);
         
       }, 3500);
     }
   }, [drawingPhase, validateDraw, generateWinners, selectedPrize, predeterminedWinners, updateDrawingState, participants, saveWinnersToDatabase, updatePrizeQuota, lastDrawSession, isProcessing]);
 
-  // Enhanced: Button configuration with all phases
+  // Simplified: Button configuration - only start and stop (hide ready, stopping, default cases)
   const getButtonConfig = () => {
     if (isProcessing) {
       return {
         text: processingStatus === 'generating' ? 'MENENTUKAN PEMENANG...' : 
-              processingStatus === 'spinning' ? 'MEMULAI PUTAR...' :
               processingStatus === 'stopping' ? 'MENGHENTIKAN...' : 
               processingStatus === 'saving' ? 'MENYIMPAN...' : 'MEMPROSES...',
         colors: 'from-yellow-500 to-orange-600',
@@ -375,54 +355,23 @@ const VipPage: React.FC = () => {
       };
     }
     
-    switch (drawingPhase) {
-      case 'ready':
-        const canStart = selectedPrize && availableParticipants.length > 0;
-        return {
-          text: canStart ? `SIAPKAN ${drawCount} UNDIAN` : 'PILIH HADIAH TERLEBIH DAHULU',
-          colors: canStart 
-            ? 'from-green-500 to-green-600 hover:from-green-400 hover:to-green-500'
-            : 'from-gray-600 to-gray-700',
-          disabled: !canStart,
-          glowColor: 'from-green-400/20 to-green-500/20',
-          icon: <Play className="w-16 h-16" />
-        };
-        
-      case 'generated':
-        return {
-          text: 'MULAI UNDIAN',
-          colors: 'from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500',
-          disabled: false,
-          glowColor: 'from-blue-400/20 to-indigo-500/20',
-          icon: <Zap className="w-16 h-16" />
-        };
-        
-      case 'spinning':
-        return {
-          text: 'STOP UNDIAN',
-          colors: 'from-red-500 to-pink-600 hover:from-red-400 hover:to-pink-500',
-          disabled: false,
-          glowColor: 'from-red-400/20 to-pink-500/20',
-          icon: <Square className="w-16 h-16" />
-        };
-        
-      case 'stopping':
-        return {
-          text: 'MENYIMPAN HASIL...',
-          colors: 'from-orange-500 to-red-600',
-          disabled: true,
-          glowColor: 'from-orange-400/20 to-red-500/20',
-          icon: <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-        };
-        
-      default:
-        return {
-          text: 'SIAP',
-          colors: 'from-gray-600 to-gray-700',
-          disabled: true,
-          glowColor: 'from-gray-400/20 to-gray-500/20',
-          icon: <div className="w-16 h-16"></div>
-        };
+    if (drawingPhase === 'generated') {
+      return {
+        text: 'MULAI UNDIAN',
+        colors: 'from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500',
+        disabled: false,
+        glowColor: 'from-blue-400/20 to-indigo-500/20',
+        icon: <Zap className="w-16 h-16" />
+      };
+    } else {
+      // spinning
+      return {
+        text: 'STOP UNDIAN',
+        colors: 'from-red-500 to-pink-600 hover:from-red-400 hover:to-pink-500',
+        disabled: false,
+        glowColor: 'from-red-400/20 to-pink-500/20',
+        icon: <Square className="w-16 h-16" />
+      };
     }
   };
 
@@ -490,7 +439,7 @@ const VipPage: React.FC = () => {
           </motion.div>
         </motion.div>
 
-        {/* Enhanced: Single Large Control Button */}
+        {/* Simplified: Single Large Control Button */}
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
