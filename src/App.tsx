@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import AdminPage from './pages/AdminPage';
+import  AdminPage from './pages/AdminPage';
 import DisplayPage from './pages/DisplayPage';
 import LoginPage from './components/LoginPage';
 import VipPage from './pages/VipPage';

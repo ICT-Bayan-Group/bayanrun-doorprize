@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import Confetti from 'react-confetti';
 import { Participant, Winner, AppSettings, Prize } from '../types';
 import { useFirestore } from '../hooks/useFirestore';
 import { useFirebaseDrawingState } from '../hooks/useFirebaseDrawingState';
@@ -45,7 +44,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
   const [isDrawing, setIsDrawing] = useState(drawingState.isDrawing || false);
   const [isLocked, setIsLocked] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(drawingState.showConfetti || false);
 
   // NEW: VIP control monitoring
   const [vipControlActive, setVipControlActive] = useState(false);
@@ -83,7 +81,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
   useEffect(() => {
     setCurrentWinners(drawingState.currentWinners || []);
     setIsDrawing(drawingState.isDrawing || false);
-    setShowConfetti(drawingState.showConfetti || false);
     
     // Sync selected prize
     if (drawingState.selectedPrizeId !== undefined) {
@@ -94,7 +91,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     if (drawingState.vipProcessedWinners && drawingState.currentWinners?.length > 0) {
       console.log('Admin: VIP telah memproses pemenang, memperbarui tampilan');
       setCurrentWinners(drawingState.currentWinners);
-      setShowConfetti(drawingState.showConfetti || false);
       setVipControlActive(true);
     }
   }, [drawingState]);
@@ -140,13 +136,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     
     setIsDrawing(true);
     setCurrentWinners([]);
-    setShowConfetti(false);
-    
     // Basic Firebase state - winners will be generated in MultiDrawingArea
     updateDrawingState({
       isDrawing: true,
       currentWinners: [],
-      showConfetti: false,
       selectedPrizeName: selectedPrize?.name,
       selectedPrizeImage: selectedPrize?.image,
       selectedPrizeQuota: selectedPrize?.remainingQuota || 1,
@@ -187,8 +180,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       
       setCurrentWinners(winnersFromState);
       
-      // Show confetti - NO AUTO-HIDE, controlled by admin
-      setShowConfetti(true);
       
       // Play sound effect
       if (settings.soundEnabled) {
@@ -245,9 +236,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     
     // Set current winners
     setCurrentWinners(newWinners);
-    
-    // Show confetti - NO AUTO-HIDE, controlled by admin
-    setShowConfetti(true);
+  
     
     // Play sound effect
     if (settings.soundEnabled) {
@@ -267,7 +256,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     console.log('Admin: Membersihkan pemenang saat ini secara manual');
     
     setCurrentWinners([]);
-    setShowConfetti(false); // Manual confetti control
     setVipControlActive(false); // Reset VIP flag
     
     // ENHANCED: Clear VIP flags from localStorage
@@ -276,7 +264,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     
     updateDrawingState({ 
       currentWinners: [], 
-      showConfetti: false,
       showWinnerDisplay: false,
       finalWinners: [],
       predeterminedWinners: [],
@@ -286,14 +273,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       vipControlActive: false // Reset VIP control flag
     });
   }, [updateDrawingState]);
-
-  // NEW: Manual confetti control
-  const toggleConfetti = useCallback(() => {
-    const newShowConfetti = !showConfetti;
-    setShowConfetti(newShowConfetti);
-    updateDrawingState({ showConfetti: newShowConfetti });
-    console.log('Admin: Toggle confetti manual:', newShowConfetti);
-  }, [showConfetti, updateDrawingState]);
 
   // Prize management functions
   const addPrize = useCallback((prizeData: Omit<Prize, 'id' | 'createdAt'>) => {
@@ -403,14 +382,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {showConfetti && (
-        <Confetti
-          width={window.innerWidth}
-          height={window.innerHeight}
-          recycle={false}
-          numberOfPieces={200}
-        />
-      )}
       
       <Header
         logo={settings.eventLogo}
@@ -477,16 +448,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
                 </p>
               </div>
               <div className="flex gap-3">
-                <button
-                  onClick={toggleConfetti}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-                    showConfetti
-                      ? 'bg-yellow-600 text-white hover:bg-yellow-700'
-                      : 'bg-gray-600 text-white hover:bg-gray-700'
-                  }`}
-                >
-                  {showConfetti ? 'Stop Confetti' : 'Mulai Confetti'}
-                </button>
                 <button
                   onClick={clearCurrentWinners}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"

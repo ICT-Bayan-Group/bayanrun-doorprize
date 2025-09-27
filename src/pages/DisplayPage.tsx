@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Winner, AppSettings, Participant } from '../types';
 import { useFirestore } from '../hooks/useFirestore';
 import { useFirebaseDrawingState } from '../hooks/useFirebaseDrawingState';
-import Confetti from 'react-confetti';
 
 interface DrawingState {
   selectedPrizeQuota: number;
   isDrawing: boolean;
   currentWinners: Winner[];
-  showConfetti: boolean;
   selectedPrizeName?: string;
   selectedPrizeImage?: string;
   participants: Participant[];
@@ -79,7 +77,6 @@ const DisplayPage: React.FC = () => {
   const [localState, setLocalState] = useState<DrawingState>({
     isDrawing: false,
     currentWinners: [],
-    showConfetti: false,
     selectedPrizeName: undefined,
     selectedPrizeImage: undefined,
     participants: [],
@@ -262,16 +259,6 @@ const DisplayPage: React.FC = () => {
                 }}
               />
             </div>
-          )}
-
-          {(localState.showConfetti || showFinalResults) && (
-            <Confetti
-              width={window.innerWidth}
-              height={window.innerHeight}
-              recycle={false}
-              numberOfPieces={300}
-              gravity={0.3}
-            />
           )}
 
           {/* Header with Logo */}
