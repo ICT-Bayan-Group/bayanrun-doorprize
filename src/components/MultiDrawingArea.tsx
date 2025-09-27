@@ -249,7 +249,6 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     updateDrawingState({
       isDrawing: true,
       currentWinners: [],
-      showConfetti: false,
       shouldStartSpinning: false,
       showWinnerDisplay: false,
       selectedPrizeName: selectedPrize?.name,
@@ -305,7 +304,6 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         shouldStartSlowdown: false,
         showWinnerDisplay: true,
         finalWinners: currentWinners,
-        showConfetti: true
       });
       
       // Call onStopDraw without winners to prevent duplicate processing
@@ -346,7 +344,6 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         showWinnerDisplay: true,
         finalWinners: predeterminedWinners,
         currentWinners: predeterminedWinners,
-        showConfetti: true
       });
       
       // Call onStopDraw with pre-determined winners (Admin processes)
@@ -383,7 +380,6 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
       showWinnerDisplay: false,
       currentWinners: [],
       finalWinners: [],
-      showConfetti: false,
       predeterminedWinners: [],
       vipProcessedWinners: false,
       vipControlActive: false

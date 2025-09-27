@@ -261,7 +261,6 @@ const VipPage: React.FC = () => {
       await updateDrawingState({
         isDrawing: true,
         currentWinners: [],
-        showConfetti: false,
         shouldStartSpinning: true,
         showWinnerDisplay: false,
         selectedPrizeName: selectedPrize?.name,
@@ -321,7 +320,6 @@ const VipPage: React.FC = () => {
           showWinnerDisplay: true,
           finalWinners: predeterminedWinners,
           currentWinners: predeterminedWinners,
-          showConfetti: true,
           vipProcessedWinners: true,
           vipControlActive: true
         });
