@@ -10,7 +10,6 @@ interface PrizeManagerProps {
   onDeletePrize: (id: string) => void;
   selectedPrize: Prize | null;
   onSelectPrize: (prize: Prize | null) => void;
-  isLocked: boolean;
 }
 
 const PrizeManager: React.FC<PrizeManagerProps> = ({
@@ -20,7 +19,6 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
   onDeletePrize,
   selectedPrize,
   onSelectPrize,
-  isLocked
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingPrize, setEditingPrize] = useState<Prize | null>(null);
@@ -115,7 +113,7 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
           Data Hadiah ({prizes.length})
         </h2>
         
-        {!isLocked && (
+        { (
           <button
             onClick={() => setShowAddForm(true)}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
@@ -228,7 +226,7 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
                 Kuota Tersisa: {selectedPrize.remainingQuota}/{selectedPrize.quota}
               </p>
             </div>
-            {!isLocked && (
+            {(
               <button
                 onClick={() => onSelectPrize(null)}
                 className="text-green-600 hover:text-green-800"
@@ -256,7 +254,7 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
                   ? 'border-purple-200 bg-purple-50 hover:border-purple-300'
                   : 'border-gray-200 bg-gray-50 opacity-60'
               }`}
-              onClick={() => !isLocked && prize.remainingQuota > 0 && onSelectPrize(prize)}
+              onClick={() =>  prize.remainingQuota > 0 && onSelectPrize(prize)}
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1">
@@ -284,7 +282,7 @@ const PrizeManager: React.FC<PrizeManagerProps> = ({
                   </div>
                 </div>
                 
-                {!isLocked && (
+                { (
                   <div className="flex gap-2">
                     <button
                       onClick={(e) => {

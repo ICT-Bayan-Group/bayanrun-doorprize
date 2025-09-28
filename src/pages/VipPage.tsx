@@ -343,13 +343,6 @@ const VipPage: React.FC = () => {
   const getButtonConfig = () => {
     if (isProcessing) {
       return {
-        text: processingStatus === 'generating' ? 'MENENTUKAN PEMENANG...' : 
-              processingStatus === 'stopping' ? 'MENGHENTIKAN...' : 
-              processingStatus === 'saving' ? 'MENYIMPAN...' : 'MEMPROSES...',
-        colors: 'from-yellow-500 to-orange-600',
-        disabled: true,
-        glowColor: 'from-yellow-400/20 to-orange-500/20',
-        icon: <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
       };
     }
     

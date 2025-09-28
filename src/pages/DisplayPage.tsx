@@ -36,6 +36,39 @@ const getLayoutConfig = (drawCount: number) => {
     return { rows: Math.ceil(drawCount / 6), cols: 6, height: 'min-h-[140px]', textSize: 'text-base sm:text-lg md:text-xl lg:text-2xl', readyTextSize: 'text-lg md:text-xl', winnerTextSize: 'text-sm sm:text-base' };
   }
 };
+const useOptimizedSpinning = (participants: Participant[], drawCount: number) => {
+  const [rollingNames, setRollingNames] = useState<string[]>([]);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const participantsRef = useRef(participants);
+  
+  // Pre-calculate random indices untuk performa lebih baik
+  const getRandomIndices = useCallback((count: number, maxLength: number) => {
+    const indices = new Set<number>();
+    while (indices.size < count) {
+      indices.add(Math.floor(Math.random() * maxLength));
+    }
+    return Array.from(indices);
+  }, []);
+
+  useEffect(() => {
+    if (isSpinning && participantsRef.current.length > 0) {
+      // Gunakan requestAnimationFrame untuk animasi yang smooth
+      const animate = () => {
+        const randomIndices = getRandomIndices(drawCount, participantsRef.current.length);
+        const newNames = randomIndices.map(i => participantsRef.current[i]?.name || '');
+        setRollingNames(newNames);
+        
+        if (isSpinning) {
+          requestAnimationFrame(animate);
+        }
+      };
+      
+      requestAnimationFrame(animate);
+    }
+  }, [isSpinning, drawCount, getRandomIndices]);
+
+  return rollingNames;
+};
 
 // Function untuk membuat grid baris
 const createGridRows = (drawCount: number, layoutConfig: { rows: any; cols: any; height?: string; textSize?: string; readyTextSize?: string; winnerTextSize?: string; }) => {

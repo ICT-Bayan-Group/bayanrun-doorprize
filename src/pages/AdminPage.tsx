@@ -42,7 +42,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
   const [currentWinners, setCurrentWinners] = useState<Winner[]>(drawingState.currentWinners || []);
   const [selectedPrizeId, setSelectedPrizeId] = useState<string | null>(drawingState.selectedPrizeId || null);
   const [isDrawing, setIsDrawing] = useState(drawingState.isDrawing || false);
-  const [isLocked, setIsLocked] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   // NEW: VIP control monitoring
@@ -367,7 +366,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     window.open('/display', '_blank');
   }, []);
 
-  const canDraw = participants.length > 0 && !isDrawing && !isLocked;
+  const canDraw = participants.length > 0 && !isDrawing;
 
   // Show loading state
   if (isLoading) {
@@ -386,9 +385,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       <Header
         logo={settings.eventLogo}
         isFullscreen={false}
-        isLocked={isLocked}
         onToggleFullscreen={openDisplayPage}
-        onToggleLock={() => setIsLocked(prev => !prev)}
         onOpenSettings={() => setShowSettings(true)}
         onLogout={onLogout}
       />
@@ -494,7 +491,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
               onRemoveParticipant={removeParticipant}
               onClearAll={clearAllParticipants}
               onImportParticipants={addMultipleParticipants}
-              isLocked={isLocked}
             />
           </div>
 
@@ -507,7 +503,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
               onDeletePrize={deletePrize}
               selectedPrize={selectedPrize}
               onSelectPrize={handleSelectPrize}
-              isLocked={isLocked}
             />
           </div>
 
@@ -523,7 +518,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
               onStopDraw={stopDrawing}
               onClearWinners={clearCurrentWinners}
               canDraw={canDraw}
-              isLocked={isLocked}
               prizes={prizes}
               selectedPrizeId={selectedPrizeId}
               onRemoveParticipants={removeParticipants}
@@ -535,7 +529,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
           <div>
             <WinnerHistory
               winners={winners}
-              isLocked={isLocked}
             />
           </div>
         </div>
@@ -547,16 +540,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
         settings={settings}
         onUpdateSettings={updateSettings}
       />
-
-      {isLocked && (
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg"
-        >
-          🔒 Terkunci
-        </motion.div>
-      )}
     </div>
   );
 };

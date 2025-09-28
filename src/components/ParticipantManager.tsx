@@ -10,7 +10,6 @@ interface ParticipantManagerProps {
   onRemoveParticipant: (id: string) => void;
   onClearAll: () => void;
   onImportParticipants: (names: string[]) => void;
-  isLocked: boolean;
 }
 
 interface ImportResult {
@@ -27,7 +26,6 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
   onRemoveParticipant,
   onClearAll,
   onImportParticipants,
-  isLocked
 }) => {
   const [newName, setNewName] = useState('');
   const [isImporting, setIsImporting] = useState(false);
@@ -70,7 +68,7 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
     e.preventDefault();
     setValidationError(null);
     
-    if (isLocked) return;
+
     
     const validation = validateName(newName);
     
@@ -81,12 +79,12 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
     
     onAddParticipant(newName.trim());
     setNewName('');
-  }, [newName, isLocked, validateName, onAddParticipant]);
+  }, [newName, validateName, onAddParticipant]);
 
   // Enhanced import with duplicate detection and reporting
   const handleFileImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || isLocked) return;
+    if (!file ) return;
 
     setIsImporting(true);
     setValidationError(null);
@@ -152,7 +150,7 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
         fileInputRef.current.value = '';
       }
     }
-  }, [isLocked, validateName, participants, onImportParticipants]);
+  }, [ validateName, participants, onImportParticipants]);
 
   // Enhanced clear with confirmation and duplicate info
   const handleClearAll = useCallback(() => {
@@ -222,7 +220,7 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
                 {duplicateCount} nama duplikat terdeteksi
               </span>
             </div>
-            {!isLocked && (
+            {(
               <button
                 onClick={removeDuplicates}
                 className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
@@ -253,7 +251,7 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
         </div>
       )}
 
-      {!isLocked && (
+      { (
         <div className="space-y-4 mb-6">
           <form onSubmit={handleAddName} className="flex gap-2">
             <div className="flex-1">
@@ -345,7 +343,7 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
                     </span>
                   )}
                 </div>
-                {!isLocked && (
+                { (
                   <button
                     onClick={() => onRemoveParticipant(participant.id)}
                     className="text-red-500 hover:text-red-700 transition-colors"
