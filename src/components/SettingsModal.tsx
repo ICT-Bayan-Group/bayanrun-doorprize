@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, Palette, Volume2, VolumeX } from 'lucide-react';
+import { X, Upload } from 'lucide-react';
 import { AppSettings } from '../types';
 
 interface SettingsModalProps {
@@ -30,14 +30,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       reader.readAsDataURL(file);
     }
   };
-
-  const colorPresets = [
-    { name: 'Ocean Blue', primary: '#2563eb', secondary: '#1d4ed8' },
-    { name: 'Forest Green', primary: '#059669', secondary: '#047857' },
-    { name: 'Sunset Orange', primary: '#ea580c', secondary: '#dc2626' },
-    { name: 'Royal Purple', primary: '#7c3aed', secondary: '#6d28d9' },
-    { name: 'Rose Pink', primary: '#e11d48', secondary: '#be123c' },
-  ];
 
   return (
     <AnimatePresence>
@@ -83,43 +75,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 )}
               </div>
 
-              {/* Color Theme */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <Palette className="w-5 h-5" />
-                  Color Theme
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {colorPresets.map((preset) => (
-                    <button
-                      key={preset.name}
-                      onClick={() => onUpdateSettings({
-                        primaryColor: preset.primary,
-                        secondaryColor: preset.secondary
-                      })}
-                      className={`p-4 rounded-lg border-2 text-left transition-all ${
-                        settings.primaryColor === preset.primary
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex">
-                          <div
-                            className="w-6 h-6 rounded-l"
-                            style={{ backgroundColor: preset.primary }}
-                          />
-                          <div
-                            className="w-6 h-6 rounded-r"
-                            style={{ backgroundColor: preset.secondary }}
-                          />
-                        </div>
-                        <span className="font-medium text-gray-800">{preset.name}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               {/* Animation Style */}
               <div>
@@ -159,34 +114,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   <p className="text-xs text-gray-500 mt-1">
                     Number of winners to draw when no specific prize is selected
                   </p>
-                </div>
-              </div>
-
-              {/* Sound Settings */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  {settings.soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-                  Sound Effects
-                </h3>
-                <div className="space-y-3">
-                  <label className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={settings.soundEnabled}
-                      onChange={(e) => onUpdateSettings({ soundEnabled: e.target.checked })}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <span className="text-gray-700">Enable Sound Effects</span>
-                  </label>
-                  <label className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={settings.backgroundMusic}
-                      onChange={(e) => onUpdateSettings({ backgroundMusic: e.target.checked })}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <span className="text-gray-700">Background Music</span>
-                  </label>
                 </div>
               </div>
             </div>

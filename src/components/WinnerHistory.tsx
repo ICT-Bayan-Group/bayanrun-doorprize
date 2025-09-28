@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Download, Printer, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Trophy,  Printer, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { Winner } from '../types';
 import { exportWinnersCSV } from '../utils/pdfExport';
 
 interface WinnerHistoryProps {
   winners: Winner[];
-  isLocked: boolean;
 }
 
 const WinnerHistory: React.FC<WinnerHistoryProps> = ({
   winners,
-  isLocked
 }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportType, setExportType] = useState<'csv' | null>(null);
@@ -119,7 +117,7 @@ const WinnerHistory: React.FC<WinnerHistoryProps> = ({
           Pemenang ({winners.length})
         </h2>
         
-        {winners.length > 0 && !isLocked && (
+        {winners.length > 0 && (
           <div className="flex gap-2">
             {/* CSV Export */}
             <button

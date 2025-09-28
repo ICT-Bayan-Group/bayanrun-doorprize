@@ -13,7 +13,6 @@ interface MultiDrawingAreaProps {
   onStopDraw: (finalWinners: Winner[]) => void;
   onClearWinners: () => void;
   canDraw: boolean;
-  isLocked: boolean;
   prizes: Prize[];
   selectedPrizeId: string | null;
   onRemoveParticipants: (participantIds: string[]) => void;
@@ -39,7 +38,6 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
   onStopDraw,
   onClearWinners,
   canDraw,
-  isLocked,
   prizes,
   selectedPrizeId,
   onRemoveParticipants,
@@ -651,9 +649,9 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
           {!isDrawing ? (
             <button
               onClick={handleDrawClick}
-              disabled={!canDraw || isLocked || !selectedPrize || availableParticipants.length === 0 || (vipControlActive && vipControlStatus === 'active')}
+              disabled={!canDraw || !selectedPrize || availableParticipants.length === 0 || (vipControlActive && vipControlStatus === 'active')}
               className={`flex items-center px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex-1 justify-center ${
-                canDraw && !isLocked && selectedPrize && availableParticipants.length > 0 && !(vipControlActive && vipControlStatus === 'active')
+                canDraw && selectedPrize && availableParticipants.length > 0 && !(vipControlActive && vipControlStatus === 'active')
                   ? 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transform hover:scale-105'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
