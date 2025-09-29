@@ -9,7 +9,7 @@ interface ParticipantManagerProps {
   onAddParticipant: (name: string) => void;
   onRemoveParticipant: (id: string) => void;
   onClearAll: () => void;
-  onImportParticipants: (names: string[]) => void;
+  onImportParticipants: (participants: Array<{ name: string; phone?: string; email?: string }>) => void;
 }
 
 interface ImportResult {
@@ -68,8 +68,6 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
     e.preventDefault();
     setValidationError(null);
     
-
-    
     const validation = validateName(newName);
     
     if (!validation.isValid) {
@@ -84,46 +82,57 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
   // Enhanced import with duplicate detection and reporting
   const handleFileImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file ) return;
+    if (!file) return;
 
     setIsImporting(true);
     setValidationError(null);
     setImportResult(null);
     
     try {
-      const rawNames = await importFromFile(file);
+      // Import now returns array of { name, phone?, email? }
+      const importedData = await importFromFile(file);
       
-      // Process and validate names
-      const processedNames = rawNames
-        .map(name => name.trim())
-        .filter(name => name.length > 0);
+      // Process and validate
+      const processedData = importedData
+        .filter(data => data.name && data.name.trim().length > 0)
+        .map(data => ({
+          name: data.name.trim(),
+          phone: data.phone,
+          email: data.email
+        }));
       
       // Remove duplicates within the import file itself
-      const uniqueImportNames = [...new Set(processedNames.map(name => name.toLowerCase()))]
-        .map(lowerName => processedNames.find(name => name.toLowerCase() === lowerName)!);
+      const seen = new Map<string, typeof processedData[0]>();
+      processedData.forEach(data => {
+        const lowerName = data.name.toLowerCase();
+        if (!seen.has(lowerName)) {
+          seen.set(lowerName, data);
+        }
+      });
+      const uniqueImportData = Array.from(seen.values());
       
       // Check against existing participants
       const existingNames = participants.map(p => p.name.toLowerCase().trim());
-      const validNames: string[] = [];
+      const validData: typeof processedData = [];
       const duplicateNames: string[] = [];
       const invalidNames: string[] = [];
       
-      uniqueImportNames.forEach(name => {
-        const validation = validateName(name);
+      uniqueImportData.forEach(data => {
+        const validation = validateName(data.name);
         
         if (!validation.isValid) {
           if (validation.error?.includes('sudah terdaftar')) {
-            duplicateNames.push(name);
+            duplicateNames.push(data.name);
           } else {
-            invalidNames.push(name);
+            invalidNames.push(data.name);
           }
         } else {
-          validNames.push(name);
+          validData.push(data);
         }
       });
       
       const result: ImportResult = {
-        success: validNames.length,
+        success: validData.length,
         duplicates: duplicateNames.length,
         invalid: invalidNames.length,
         duplicateNames,
@@ -132,8 +141,8 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
       
       setImportResult(result);
       
-      if (validNames.length > 0) {
-        onImportParticipants(validNames);
+      if (validData.length > 0) {
+        onImportParticipants(validData);
       }
       
       if (duplicateNames.length > 0) {
@@ -143,14 +152,14 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
       
     } catch (error) {
       console.error('Import error:', error);
-      setValidationError('Error importing file. Please check the format and try again.');
+      setValidationError(`Error importing file: ${(error as Error).message}`);
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
-  }, [ validateName, participants, onImportParticipants]);
+  }, [validateName, participants, onImportParticipants]);
 
   // Enhanced clear with confirmation and duplicate info
   const handleClearAll = useCallback(() => {
@@ -220,14 +229,12 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
                 {duplicateCount} nama duplikat terdeteksi
               </span>
             </div>
-            {(
-              <button
-                onClick={removeDuplicates}
-                className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
-              >
-                Hapus Duplikat
-              </button>
-            )}
+            <button
+              onClick={removeDuplicates}
+              className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+            >
+              Hapus Duplikat
+            </button>
           </div>
         </div>
       )}
@@ -251,70 +258,68 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
         </div>
       )}
 
-      { (
-        <div className="space-y-4 mb-6">
-          <form onSubmit={handleAddName} className="flex gap-2">
-            <div className="flex-1">
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => {
-                  setNewName(e.target.value);
-                  if (validationError) setValidationError(null);
-                }}
-                placeholder="Tambah Nama Peserta atau BIB"
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:border-transparent transition-colors ${
-                  validationError 
-                    ? 'border-red-300 focus:ring-red-500' 
-                    : 'border-gray-300 focus:ring-blue-500'
-                }`}
-              />
-              {validationError && (
-                <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                  <XCircle className="w-3 h-3" />
-                  {validationError}
-                </p>
-              )}
-            </div>
-            <button
-              type="submit"
-              disabled={!newName.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </form>
-
-          <div className="flex gap-2">
+      <div className="space-y-4 mb-6">
+        <form onSubmit={handleAddName} className="flex gap-2">
+          <div className="flex-1">
             <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,.txt,.xlsx,.xls"
-              onChange={handleFileImport}
-              className="hidden"
+              type="text"
+              value={newName}
+              onChange={(e) => {
+                setNewName(e.target.value);
+                if (validationError) setValidationError(null);
+              }}
+              placeholder="Tambah Nama Peserta atau BIB"
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:border-transparent transition-colors ${
+                validationError 
+                  ? 'border-red-300 focus:ring-red-500' 
+                  : 'border-gray-300 focus:ring-blue-500'
+              }`}
             />
-            
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isImporting}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50"
-            >
-              <Upload className="w-4 h-4" />
-              {isImporting ? 'Importing...' : 'Import'}
-            </button>
-            
-            {participants.length > 0 && (
-              <button
-                onClick={handleClearAll}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                Hapus
-              </button>
+            {validationError && (
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <XCircle className="w-3 h-3" />
+                {validationError}
+              </p>
             )}
           </div>
+          <button
+            type="submit"
+            disabled={!newName.trim()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </form>
+
+        <div className="flex gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.txt,.xlsx,.xls"
+            onChange={handleFileImport}
+            className="hidden"
+          />
+          
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+          >
+            <Upload className="w-4 h-4" />
+            {isImporting ? 'Importing...' : 'Import'}
+          </button>
+          
+          {participants.length > 0 && (
+            <button
+              onClick={handleClearAll}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Hapus
+            </button>
+          )}
         </div>
-      )}
+      </div>
 
       <div className="max-h-64 overflow-y-auto">
         <AnimatePresence>
@@ -343,15 +348,13 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
                     </span>
                   )}
                 </div>
-                { (
-                  <button
-                    onClick={() => onRemoveParticipant(participant.id)}
-                    className="text-red-500 hover:text-red-700 transition-colors"
-                    title="Hapus peserta"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+                <button
+                  onClick={() => onRemoveParticipant(participant.id)}
+                  className="text-red-500 hover:text-red-700 transition-colors"
+                  title="Hapus peserta"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </motion.div>
             );
           })}
