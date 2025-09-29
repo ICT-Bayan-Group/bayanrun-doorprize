@@ -44,7 +44,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
   const [isDrawing, setIsDrawing] = useState(drawingState.isDrawing || false);
   const [showSettings, setShowSettings] = useState(false);
 
-  // NEW: VIP control monitoring
+  // VIP control monitoring
   const [vipControlActive, setVipControlActive] = useState(false);
 
   // Loading state
@@ -56,7 +56,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     return prizes.find(prize => prize.id === selectedPrizeId) || null;
   }, [prizes, selectedPrizeId]);
 
-  // ENHANCED: Monitor VIP control activity with better detection
+  // Monitor VIP control activity
   useEffect(() => {
     const checkVipControl = () => {
       const vipProcessed = drawingState.vipProcessedWinners || 
@@ -70,8 +70,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     };
     
     checkVipControl();
-    
-    // Set up periodic check for VIP control changes
     const interval = setInterval(checkVipControl, 500);
     return () => clearInterval(interval);
   }, [drawingState, vipControlActive]);
@@ -81,12 +79,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     setCurrentWinners(drawingState.currentWinners || []);
     setIsDrawing(drawingState.isDrawing || false);
     
-    // Sync selected prize
     if (drawingState.selectedPrizeId !== undefined) {
       setSelectedPrizeId(drawingState.selectedPrizeId);
     }
     
-    // ENHANCED: Handle VIP processed winners immediately
     if (drawingState.vipProcessedWinners && drawingState.currentWinners?.length > 0) {
       console.log('Admin: VIP telah memproses pemenang, memperbarui tampilan');
       setCurrentWinners(drawingState.currentWinners);
@@ -94,6 +90,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     }
   }, [drawingState]);
 
+  // Add single participant (manual input - no phone/email)
   const addParticipant = useCallback((name: string) => {
     const newParticipant: Omit<Participant, 'id'> = {
       name,
@@ -102,12 +99,26 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     participantsHook.add(newParticipant);
   }, [participantsHook]);
 
-  const addMultipleParticipants = useCallback((names: string[]) => {
-    const promises = names.map(name => participantsHook.add({
-      name,
+  // UPDATED: Add multiple participants with phone and email support
+  const addMultipleParticipants = useCallback((
+    importedData: Array<{ name: string; phone?: string; email?: string }>
+  ) => {
+    console.log('Admin: Importing participants with data:', importedData.length);
+    
+    const promises = importedData.map(data => participantsHook.add({
+      name: data.name,
+      phone: data.phone,    // Store phone (hidden in UI)
+      email: data.email,    // Store email (hidden in UI)
       addedAt: new Date(),
     }));
-    Promise.all(promises).catch(console.error);
+    
+    Promise.all(promises)
+      .then(() => {
+        console.log('Admin: Successfully imported', importedData.length, 'participants');
+      })
+      .catch(error => {
+        console.error('Admin: Error importing participants:', error);
+      });
   }, [participantsHook]);
 
   const removeParticipant = useCallback((id: string) => {
@@ -124,18 +135,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     }
   }, [participantsHook]);
 
-  // Start drawing - simplified since winners are now generated in MultiDrawingArea
+  // Start drawing
   const startDrawing = useCallback(() => {
     if (participants.length === 0 || isDrawing) return;
     
     console.log('Admin: Memulai undian dengan peserta:', participants.length);
     
-    // Clear VIP flags when starting new draw
     setVipControlActive(false);
-    
     setIsDrawing(true);
     setCurrentWinners([]);
-    // Basic Firebase state - winners will be generated in MultiDrawingArea
+    
     updateDrawingState({
       isDrawing: true,
       currentWinners: [],
@@ -149,17 +158,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       shouldStartSpinning: false,
       shouldResetToReady: false,
       shouldStartSlowdown: false,
-      vipProcessedWinners: false // Reset VIP flag
+      vipProcessedWinners: false
     });
   }, [participants, isDrawing, selectedPrize, updateDrawingState]);
 
-  // ENHANCED: Stop drawing - handles VIP processing check
+  // Stop drawing with VIP check
   const stopDrawing = useCallback((finalWinners?: Winner[]) => {
     if (!isDrawing) return;
 
     console.log('Admin: Memproses pemenang akhir:', finalWinners);
 
-    // ENHANCED: Check if VIP has already processed winners with multiple sources
     const vipProcessed = drawingState.vipProcessedWinners || 
                         drawingState.vipControlActive || 
                         vipControlActive ||
@@ -168,7 +176,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     if (vipProcessed && (!finalWinners || finalWinners.length === 0)) {
       console.log('Admin: VIP telah memproses pemenang, melewati operasi database');
       
-      // ENHANCED: Set current winners from drawing state with validation
       const winnersFromState = drawingState.currentWinners || drawingState.finalWinners || [];
       
       if (winnersFromState.length === 0) {
@@ -179,8 +186,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       
       setCurrentWinners(winnersFromState);
       
-      
-      // Play sound effect
       if (settings.soundEnabled) {
         try {
           const audio = new Audio('/celebration-sound.mp3');
@@ -194,24 +199,29 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       return;
     }
 
-    // ENHANCED: Validate final winners before processing
     if (!finalWinners || finalWinners.length === 0) {
       console.error('Admin: Tidak ada pemenang akhir yang diberikan dan VIP belum memproses');
       setIsDrawing(false);
       return;
     }
 
-    // Admin processing (when VIP hasn't processed)
+    // Admin processing - add winners to database with phone & email
     const newWinners = finalWinners;
     
-    // ENHANCED: Add to winners database with duplicate check
     const existingWinnerNames = winners.map(w => w.name);
     const uniqueNewWinners = newWinners.filter(winner => 
       !existingWinnerNames.includes(winner.name)
     );
     
     if (uniqueNewWinners.length > 0) {
-      uniqueNewWinners.forEach(winner => winnersHook.add(winner));
+      // Add winners with phone & email data
+      uniqueNewWinners.forEach(winner => {
+        winnersHook.add({
+          ...winner,
+          phone: winner.phone,  // Include phone
+          email: winner.email   // Include email
+        });
+      });
       console.log('Admin: Menambahkan', uniqueNewWinners.length, 'pemenang baru ke database');
     } else {
       console.log('Admin: Semua pemenang sudah ada dalam database');
@@ -224,7 +234,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
         remainingQuota: newQuota
       });
       
-      // Clear selected prize if quota is exhausted
       if (newQuota <= 0) {
         setSelectedPrizeId(null);
         updateDrawingState({
@@ -233,11 +242,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       }
     }
     
-    // Set current winners
     setCurrentWinners(newWinners);
-  
     
-    // Play sound effect
     if (settings.soundEnabled) {
       try {
         const audio = new Audio('/celebration-sound.mp3');
@@ -250,14 +256,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     setIsDrawing(false);
   }, [isDrawing, selectedPrize, settings, winnersHook, prizesHook, setSelectedPrizeId, drawingState, vipControlActive, winners]);
 
-  // Clear current winners - MANUAL CONTROL
+  // Clear current winners
   const clearCurrentWinners = useCallback(() => {
     console.log('Admin: Membersihkan pemenang saat ini secara manual');
     
     setCurrentWinners([]);
-    setVipControlActive(false); // Reset VIP flag
+    setVipControlActive(false);
     
-    // ENHANCED: Clear VIP flags from localStorage
     localStorage.removeItem('vipProcessedWinners');
     localStorage.removeItem('vipDrawSession');
     
@@ -268,8 +273,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       predeterminedWinners: [],
       shouldStartSlowdown: false,
       shouldStartSpinning: false,
-      vipProcessedWinners: false, // Reset VIP flag
-      vipControlActive: false // Reset VIP control flag
+      vipProcessedWinners: false,
+      vipControlActive: false
     });
   }, [updateDrawingState]);
 
@@ -288,7 +293,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
 
   const deletePrize = useCallback((id: string) => {
     prizesHook.remove(id);
-    // Clear selection if deleted prize was selected
     if (selectedPrizeId === id) {
       setSelectedPrizeId(null);
       updateDrawingState({
@@ -297,12 +301,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
     }
   }, [prizesHook, selectedPrizeId]);
 
-  // Prize selection handler
   const handleSelectPrize = useCallback((prize: Prize | null) => {
     console.log('Admin: Hadiah dipilih:', prize?.name);
     setSelectedPrizeId(prize?.id || null);
     
-    // Update Firebase state with selected prize
     updateDrawingState({
       selectedPrizeId: prize?.id || null,
       selectedPrizeName: prize?.name,
@@ -368,7 +370,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
 
   const canDraw = participants.length > 0 && !isDrawing;
 
-  // Show loading state
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -407,7 +408,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
           </div>
         </div>
 
-        {/* NEW: VIP Control Status */}
+        {/* VIP Control Status */}
         {vipControlActive && (
           <div className="mb-6 p-4 bg-purple-100 border border-purple-300 rounded-lg">
             <div className="flex items-center justify-between">
@@ -430,7 +431,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
           </div>
         )}
 
-        {/* ENHANCED: Manual Control Panel */}
+        {/* Manual Control Panel */}
         {currentWinners.length > 0 && (
           <div className="mb-6 p-4 bg-green-100 border border-green-300 rounded-lg">
             <div className="flex items-center justify-between">
@@ -527,9 +528,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
 
           {/* Right Column - Winners */}
           <div>
-            <WinnerHistory
-              winners={winners}
-            />
+            <WinnerHistory winners={winners} />
           </div>
         </div>
       </main>

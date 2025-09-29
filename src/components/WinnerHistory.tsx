@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy,  Printer, FileSpreadsheet, Loader2 } from 'lucide-react';
-import { Winner } from '../types';
+import { Trophy, Printer, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { exportWinnersCSV } from '../utils/pdfExport';
+
+interface Winner {
+  id: string;
+  name: string;
+  wonAt: Date;
+  prizeId?: string;
+  prizeName?: string;
+  drawSession?: string;
+  phone?: string;
+  email?: string;
+}
 
 interface WinnerHistoryProps {
   winners: Winner[];
 }
 
-const WinnerHistory: React.FC<WinnerHistoryProps> = ({
-  winners,
-}) => {
+const WinnerHistory: React.FC<WinnerHistoryProps> = ({ winners }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportType, setExportType] = useState<'csv' | null>(null);
 

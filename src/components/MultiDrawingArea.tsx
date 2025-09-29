@@ -214,6 +214,8 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     return selectedParticipants.map((participant, index) => ({
       id: `${participant.id}-${Date.now()}-${index}`,
       name: participant.name,
+      phone: participant.phone, // TAMBAHKAN ini
+       email: participant.email,  // TAMBAHKAN ini
       wonAt: new Date(),
       prizeId: selectedPrize.id,
       prizeName: selectedPrize.name,
@@ -295,6 +297,15 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     if (vipProcessed || (vipControlActive && vipControlStatus === 'completed')) {
       console.log('Admin: VIP telah memproses pemenang, hanya mengupdate UI');
       
+       // PERBAIKAN: Pastikan currentWinners memiliki data lengkap dengan phone/email
+    const enrichedWinners = currentWinners.map(winner => {
+      const participant = participants.find(p => p.name === winner.name);
+      return {
+        ...winner,
+        phone: participant?.phone || winner.phone,
+        email: participant?.email || winner.email
+      };
+    });
       // VIP has processed - just update UI state without database operations
       updateDrawingState({
         isDrawing: false,
@@ -302,33 +313,42 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         shouldStartSlowdown: false,
         showWinnerDisplay: true,
         finalWinners: currentWinners,
+         currentWinners: enrichedWinners,
       });
-      
-      // Call onStopDraw without winners to prevent duplicate processing
-      onStopDraw([]);
+      onStopDraw(enrichedWinners);
       
       // Process winner removal after draw completion
-      setTimeout(() => {
-        processWinnerRemoval(currentWinners);
-      }, 1000);
-      
-      setPredeterminedWinners([]);
-      return;
-    }
+    setTimeout(() => {
+      processWinnerRemoval(enrichedWinners);
+    }, 1000);
+    
+    setPredeterminedWinners([]);
+    return;
+  }
 
-    // Standard admin processing
+  // Standard admin processing - PASTIKAN predeterminedWinners sudah memiliki phone/email
     console.log('Admin: Memulai perlambatan natural ke pemenang yang telah ditentukan:', predeterminedWinners);
     
     if (predeterminedWinners.length === 0) {
       console.error('Admin: Tidak ada pemenang yang telah ditentukan!');
       return;
     }
+
+     // PERBAIKAN: Enrich predetermined winners dengan phone/email data
+    const enrichedPredeterminedWinners = predeterminedWinners.map(winner => {
+    const participant = participants.find(p => p.name === winner.name);
+    return {
+      ...winner,
+      phone: participant?.phone || winner.phone,
+      email: participant?.email || winner.email
+    };
+  });
     
     // Start natural slowdown process
     updateDrawingState({
       shouldStartSlowdown: true,
       shouldStartSpinning: true,
-      predeterminedWinners: predeterminedWinners
+      predeterminedWinners: enrichedPredeterminedWinners
     });
     
     // After 3.5 seconds, finalize results
@@ -340,23 +360,23 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         shouldStartSpinning: false,
         shouldStartSlowdown: false,
         showWinnerDisplay: true,
-        finalWinners: predeterminedWinners,
-        currentWinners: predeterminedWinners,
+        finalWinners: enrichedPredeterminedWinners,
+        currentWinners: enrichedPredeterminedWinners,
       });
       
-      // Call onStopDraw with pre-determined winners (Admin processes)
-      onStopDraw(predeterminedWinners);
-      
-      // Process winner removal after draw completion
-      setTimeout(() => {
-        processWinnerRemoval(predeterminedWinners);
-      }, 1000);
-      
-      setPredeterminedWinners([]);
-      
-    }, 3500);
+      // Call onStopDraw dengan enriched pre-determined winners
+    onStopDraw(enrichedPredeterminedWinners);
     
-  }, [predeterminedWinners, updateDrawingState, onStopDraw, processWinnerRemoval, currentWinners, vipControlActive, vipControlStatus]);
+    // Process winner removal after draw completion
+    setTimeout(() => {
+      processWinnerRemoval(enrichedPredeterminedWinners);
+    }, 1000);
+    
+    setPredeterminedWinners([]);
+    
+  }, 3500);
+  
+}, [predeterminedWinners, updateDrawingState, onStopDraw, processWinnerRemoval, currentWinners, vipControlActive, vipControlStatus, participants]);
 
   // Enhanced handleDeleteClick
   const handleDeleteClick = () => setShowDeleteConfirm(true);
