@@ -25,7 +25,6 @@ interface DrawingState {
   predeterminedWinners: Winner[];
   isDrawing: boolean;
   currentWinners: Winner[];
-  showConfetti: boolean;
   selectedPrizeName?: string;
   selectedPrizeImage?: string;
   selectedPrizeId?: string | null;
@@ -62,7 +61,6 @@ const DEFAULT_DRAWING_STATE: Readonly<DrawingState> = Object.freeze({
   predeterminedWinners: [],
   isDrawing: false,
   currentWinners: [],
-  showConfetti: false,
   selectedPrizeId: null,
   selectedPrizeQuota: 0,
   participants: [],
@@ -208,8 +206,7 @@ export function useFirebaseDrawingState() {
       if (
         current.isDrawing !== newState.isDrawing ||
         current.currentWinners.length !== newState.currentWinners.length ||
-        current.vipProcessedWinners !== newState.vipProcessedWinners ||
-        current.showConfetti !== newState.showConfetti
+        current.vipProcessedWinners !== newState.vipProcessedWinners
       ) {
         return newState;
       }

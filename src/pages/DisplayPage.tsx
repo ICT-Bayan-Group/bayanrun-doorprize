@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Winner, AppSettings, Participant } from '../types';
 import { useFirestore } from '../hooks/useFirestore';
 import { useFirebaseDrawingState } from '../hooks/useFirebaseDrawingState';
-import Confetti from 'react-confetti';
 
 interface DrawingState {
   selectedPrizeQuota: number;
   isDrawing: boolean;
   currentWinners: Winner[];
-  showConfetti: boolean;
   selectedPrizeName?: string;
   selectedPrizeImage?: string;
   participants: Participant[];
@@ -37,6 +35,39 @@ const getLayoutConfig = (drawCount: number) => {
   } else {
     return { rows: Math.ceil(drawCount / 6), cols: 6, height: 'min-h-[140px]', textSize: 'text-base sm:text-lg md:text-xl lg:text-2xl', readyTextSize: 'text-lg md:text-xl', winnerTextSize: 'text-sm sm:text-base' };
   }
+};
+const useOptimizedSpinning = (participants: Participant[], drawCount: number) => {
+  const [rollingNames, setRollingNames] = useState<string[]>([]);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const participantsRef = useRef(participants);
+  
+  // Pre-calculate random indices untuk performa lebih baik
+  const getRandomIndices = useCallback((count: number, maxLength: number) => {
+    const indices = new Set<number>();
+    while (indices.size < count) {
+      indices.add(Math.floor(Math.random() * maxLength));
+    }
+    return Array.from(indices);
+  }, []);
+
+  useEffect(() => {
+    if (isSpinning && participantsRef.current.length > 0) {
+      // Gunakan requestAnimationFrame untuk animasi yang smooth
+      const animate = () => {
+        const randomIndices = getRandomIndices(drawCount, participantsRef.current.length);
+        const newNames = randomIndices.map(i => participantsRef.current[i]?.name || '');
+        setRollingNames(newNames);
+        
+        if (isSpinning) {
+          requestAnimationFrame(animate);
+        }
+      };
+      
+      requestAnimationFrame(animate);
+    }
+  }, [isSpinning, drawCount, getRandomIndices]);
+
+  return rollingNames;
 };
 
 // Function untuk membuat grid baris
@@ -79,7 +110,6 @@ const DisplayPage: React.FC = () => {
   const [localState, setLocalState] = useState<DrawingState>({
     isDrawing: false,
     currentWinners: [],
-    showConfetti: false,
     selectedPrizeName: undefined,
     selectedPrizeImage: undefined,
     participants: [],
@@ -262,16 +292,6 @@ const DisplayPage: React.FC = () => {
                 }}
               />
             </div>
-          )}
-
-          {(localState.showConfetti || showFinalResults) && (
-            <Confetti
-              width={window.innerWidth}
-              height={window.innerHeight}
-              recycle={false}
-              numberOfPieces={300}
-              gravity={0.3}
-            />
           )}
 
           {/* Header with Logo */}

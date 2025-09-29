@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Settings, Monitor, Lock, Unlock, LogOut, CheckCircle, AlertCircle } from 'lucide-react';
+import { Trophy, Settings, Monitor,LogOut, AlertCircle } from 'lucide-react';
 import { onSnapshot, doc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 interface HeaderProps {
   logo?: string;
   isFullscreen: boolean;
-  isLocked: boolean;
   onToggleFullscreen: () => void;
-  onToggleLock: () => void;
   onOpenSettings: () => void;
   onLogout?: () => void;
 }
@@ -17,9 +15,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({
   logo,
   isFullscreen,
-  isLocked,
   onToggleFullscreen,
-  onToggleLock,
   onOpenSettings,
   onLogout
 }) => {
@@ -103,16 +99,6 @@ const Header: React.FC<HeaderProps> = ({
                 </div>
               )}
             </motion.div>
-
-            <button
-              onClick={onToggleLock}
-              className={`p-2 rounded-lg transition-colors ${
-                isLocked ? 'bg-red-500 hover:bg-red-600' : 'bg-white hover:bg-gray-100'
-              }`}
-              title={isLocked ? 'Unlock Controls' : 'Lock Controls'}
-            >
-              {isLocked ? <Lock className="w-4 h-4 text-white" /> : <Unlock className="w-4 h-4" />}
-            </button>
             
             <button
               onClick={onToggleFullscreen}
@@ -125,7 +111,6 @@ const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onOpenSettings}
               className="p-2 rounded-lg bg-white hover:bg-gray-100 transition-colors"
-              disabled={isLocked}
               title="Settings"
             >
               <Settings className="w-4 h-4" />

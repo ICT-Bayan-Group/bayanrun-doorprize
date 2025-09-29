@@ -1,6 +1,16 @@
 // utils/pdfExport.ts
 import { jsPDF } from 'jspdf';
-import { Winner } from '../types';
+
+interface Winner {
+  id: string;
+  name: string;
+  wonAt: Date;
+  prizeId?: string;
+  prizeName?: string;
+  drawSession?: string;
+  phone?: string;
+  email?: string;
+}
 
 interface ExportOptions {
   title?: string;
@@ -149,30 +159,54 @@ export const exportWinnersSimplePDF = async (winners: Winner[]) => {
   }
 };
 
-// CSV Export as alternative
+// Extract BIB number from name string
+const extractBIB = (name: string): string => {
+  const bibMatch = name.match(/\((\d+)\)$/);
+  return bibMatch ? bibMatch[1] : '';
+};
+
+// Extract name without BIB
+const extractName = (fullName: string): string => {
+  return fullName.replace(/\s*\(\d+\)$/, '').trim();
+};
+
+// CSV Export with Phone and Email
 export const exportWinnersCSV = (winners: Winner[]) => {
   try {
-    const headers = ['No', 'Name', 'Prize', 'Date', 'Time'];
+    const headers = ['No', 'Name', 'BIB', 'Phone', 'Email', 'Prize', 'Date', 'Time'];
     const csvContent = [
       headers.join(','),
-      ...winners.map((winner, index) => [
-        index + 1,
-        `"${winner.name}"`,
-        `"${winner.prizeName || '-'}"`,
-        new Date(winner.wonAt).toLocaleDateString('id-ID'),
-        new Date(winner.wonAt).toLocaleTimeString('id-ID')
-      ].join(','))
+      ...winners.map((winner, index) => {
+        const cleanName = extractName(winner.name);
+        const bibNumber = extractBIB(winner.name);
+        
+        return [
+          index + 1,
+          `"${cleanName}"`,
+          `"${bibNumber}"`,
+          `"${winner.phone || '-'}"`,
+          `"${winner.email || '-'}"`,
+          `"${winner.prizeName || '-'}"`,
+          new Date(winner.wonAt).toLocaleDateString('id-ID'),
+          new Date(winner.wonAt).toLocaleTimeString('id-ID', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            second: '2-digit'
+          })
+        ].join(',');
+      })
     ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `winners-${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
+    URL.revokeObjectURL(link.href);
     
     return { success: true };
   } catch (error) {
     console.error('CSV Export Error:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 };

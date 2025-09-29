@@ -13,7 +13,6 @@ interface MultiDrawingAreaProps {
   onStopDraw: (finalWinners: Winner[]) => void;
   onClearWinners: () => void;
   canDraw: boolean;
-  isLocked: boolean;
   prizes: Prize[];
   selectedPrizeId: string | null;
   onRemoveParticipants: (participantIds: string[]) => void;
@@ -39,7 +38,6 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
   onStopDraw,
   onClearWinners,
   canDraw,
-  isLocked,
   prizes,
   selectedPrizeId,
   onRemoveParticipants,
@@ -216,6 +214,8 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     return selectedParticipants.map((participant, index) => ({
       id: `${participant.id}-${Date.now()}-${index}`,
       name: participant.name,
+      phone: participant.phone, // TAMBAHKAN ini
+       email: participant.email,  // TAMBAHKAN ini
       wonAt: new Date(),
       prizeId: selectedPrize.id,
       prizeName: selectedPrize.name,
@@ -249,7 +249,6 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     updateDrawingState({
       isDrawing: true,
       currentWinners: [],
-      showConfetti: false,
       shouldStartSpinning: false,
       showWinnerDisplay: false,
       selectedPrizeName: selectedPrize?.name,
@@ -298,6 +297,15 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
     if (vipProcessed || (vipControlActive && vipControlStatus === 'completed')) {
       console.log('Admin: VIP telah memproses pemenang, hanya mengupdate UI');
       
+       // PERBAIKAN: Pastikan currentWinners memiliki data lengkap dengan phone/email
+    const enrichedWinners = currentWinners.map(winner => {
+      const participant = participants.find(p => p.name === winner.name);
+      return {
+        ...winner,
+        phone: participant?.phone || winner.phone,
+        email: participant?.email || winner.email
+      };
+    });
       // VIP has processed - just update UI state without database operations
       updateDrawingState({
         isDrawing: false,
@@ -305,34 +313,42 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         shouldStartSlowdown: false,
         showWinnerDisplay: true,
         finalWinners: currentWinners,
-        showConfetti: true
+         currentWinners: enrichedWinners,
       });
-      
-      // Call onStopDraw without winners to prevent duplicate processing
-      onStopDraw([]);
+      onStopDraw(enrichedWinners);
       
       // Process winner removal after draw completion
-      setTimeout(() => {
-        processWinnerRemoval(currentWinners);
-      }, 1000);
-      
-      setPredeterminedWinners([]);
-      return;
-    }
+    setTimeout(() => {
+      processWinnerRemoval(enrichedWinners);
+    }, 1000);
+    
+    setPredeterminedWinners([]);
+    return;
+  }
 
-    // Standard admin processing
+  // Standard admin processing - PASTIKAN predeterminedWinners sudah memiliki phone/email
     console.log('Admin: Memulai perlambatan natural ke pemenang yang telah ditentukan:', predeterminedWinners);
     
     if (predeterminedWinners.length === 0) {
       console.error('Admin: Tidak ada pemenang yang telah ditentukan!');
       return;
     }
+
+     // PERBAIKAN: Enrich predetermined winners dengan phone/email data
+    const enrichedPredeterminedWinners = predeterminedWinners.map(winner => {
+    const participant = participants.find(p => p.name === winner.name);
+    return {
+      ...winner,
+      phone: participant?.phone || winner.phone,
+      email: participant?.email || winner.email
+    };
+  });
     
     // Start natural slowdown process
     updateDrawingState({
       shouldStartSlowdown: true,
       shouldStartSpinning: true,
-      predeterminedWinners: predeterminedWinners
+      predeterminedWinners: enrichedPredeterminedWinners
     });
     
     // After 3.5 seconds, finalize results
@@ -344,24 +360,23 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
         shouldStartSpinning: false,
         shouldStartSlowdown: false,
         showWinnerDisplay: true,
-        finalWinners: predeterminedWinners,
-        currentWinners: predeterminedWinners,
-        showConfetti: true
+        finalWinners: enrichedPredeterminedWinners,
+        currentWinners: enrichedPredeterminedWinners,
       });
       
-      // Call onStopDraw with pre-determined winners (Admin processes)
-      onStopDraw(predeterminedWinners);
-      
-      // Process winner removal after draw completion
-      setTimeout(() => {
-        processWinnerRemoval(predeterminedWinners);
-      }, 1000);
-      
-      setPredeterminedWinners([]);
-      
-    }, 3500);
+      // Call onStopDraw dengan enriched pre-determined winners
+    onStopDraw(enrichedPredeterminedWinners);
     
-  }, [predeterminedWinners, updateDrawingState, onStopDraw, processWinnerRemoval, currentWinners, vipControlActive, vipControlStatus]);
+    // Process winner removal after draw completion
+    setTimeout(() => {
+      processWinnerRemoval(enrichedPredeterminedWinners);
+    }, 1000);
+    
+    setPredeterminedWinners([]);
+    
+  }, 3500);
+  
+}, [predeterminedWinners, updateDrawingState, onStopDraw, processWinnerRemoval, currentWinners, vipControlActive, vipControlStatus, participants]);
 
   // Enhanced handleDeleteClick
   const handleDeleteClick = () => setShowDeleteConfirm(true);
@@ -383,7 +398,6 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
       showWinnerDisplay: false,
       currentWinners: [],
       finalWinners: [],
-      showConfetti: false,
       predeterminedWinners: [],
       vipProcessedWinners: false,
       vipControlActive: false
@@ -655,9 +669,9 @@ const MultiDrawingArea: React.FC<MultiDrawingAreaProps> = ({
           {!isDrawing ? (
             <button
               onClick={handleDrawClick}
-              disabled={!canDraw || isLocked || !selectedPrize || availableParticipants.length === 0 || (vipControlActive && vipControlStatus === 'active')}
+              disabled={!canDraw || !selectedPrize || availableParticipants.length === 0 || (vipControlActive && vipControlStatus === 'active')}
               className={`flex items-center px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex-1 justify-center ${
-                canDraw && !isLocked && selectedPrize && availableParticipants.length > 0 && !(vipControlActive && vipControlStatus === 'active')
+                canDraw && selectedPrize && availableParticipants.length > 0 && !(vipControlActive && vipControlStatus === 'active')
                   ? 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transform hover:scale-105'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
