@@ -252,7 +252,7 @@ const DisplayPage: React.FC = () => {
   // Show loading state
   if (settingsHook.loading) {
     return (
-      <div className="fixed inset-0 bg-gradient-to-b from-red-900 to-slate-900 flex items-center justify-center">
+      <div className="fixed inset-0 bg-gradient-to-b from-blue-400 to-blue-950 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-20 w-20 border-b-4 border-white mx-auto mb-6"></div>
         </div>
@@ -273,9 +273,8 @@ const DisplayPage: React.FC = () => {
           zIndex: 10,
         }}
       >
-
-        <div className="fixed inset-0 bg-gradient-to-b from-red-900 to-slate-900 flex flex-col text-slate-800 overflow-hidden">
-          {/* Prize Image - Positioned at bottom right corner, cropped */}
+        <div className="fixed inset-0 bg-gradient-to-b from-blue-400 to-blue-950 flex flex-col text-slate-800 overflow-hidden">
+          {/* Prize Image - Positioned at bottom right corner */}
           {localState.selectedPrizeImage && (
             <div className="absolute bottom-0 right-0 z-0 overflow-hidden">
               <img
@@ -309,9 +308,8 @@ const DisplayPage: React.FC = () => {
           {localState.selectedPrizeName && (localState.isDrawing || showFinalResults) && (
             <div className="absolute top-24 left-0 right-0 z-20">
               <div className="text-center">
-                <div className="bg-gradient-to-b from-red-900 to-slate-900 backdrop-blur-sm rounded-2xl px-8 py-4 mx-auto inline-block shadow-xl">
-
-                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white uppercase">
+                 <div className="bg-transparent">
+                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white mb-4 uppercase">
                     {localState.selectedPrizeName}
                   </h1>
                 </div>
@@ -397,8 +395,8 @@ const DisplayPage: React.FC = () => {
                                             {!isSpinning && !showFinalResults ? (
                                               <div className="absolute inset-0 flex items-center justify-center">
                                                 <div className="text-center">
-                                                  <div className="bg-green-400 rounded-lg px-4 py-3 shadow-md">
-                                                    <span className={`${layoutConfig.readyTextSize} font-bold text-white block`}>
+                                                  <div className="bg-transparent ">
+                                                    <span className={`${layoutConfig.readyTextSize}  font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white mb-4' : 'text-6xl md:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white mb-4`}>
                                                       Ready
                                                     </span>
                                                   </div>
@@ -410,11 +408,11 @@ const DisplayPage: React.FC = () => {
                                                 <div className="text-center w-full">
                                                   <div className={`rounded-lg px-3 py-2 shadow-lg ${
                                                     showFinalResults
-                                                      ? 'bg-green-100' 
-                                                      : 'bg-white'
+                                                      ? 'bg-transparent border-transparent shadow-transparent' 
+                                                      : 'bg-transparent border-transparent shadow-transparent'
                                                   }`}>
                                                     {/* Name */}
-                                                    <span className={`${layoutConfig.textSize} font-bold block break-words leading-tight ${
+                                                    <span className={`${layoutConfig.textSize} font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white mb-4' : 'text-6xl md:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white mb-4 ${
                                                       showFinalResults ? 'text-black' : 'text-black'
                                                     }`}>
                                                       {rollingNames[actualIndex] || (showFinalResults ? localState.finalWinners?.[actualIndex]?.name : '') || '...'}
