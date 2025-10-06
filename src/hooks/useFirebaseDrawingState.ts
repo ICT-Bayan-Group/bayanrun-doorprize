@@ -11,8 +11,8 @@ interface DrawingState {
   isDrawing: boolean;
   currentWinners: Winner[];
   showConfetti: boolean;
-  selectedPrizeName?: string;
-  selectedPrizeImage?: string;
+  selectedPrizeName?: string | null;
+  selectedPrizeImage?: string | null;
   selectedPrizeId?: string | null;
   selectedPrizeQuota: number;
   participants: Participant[];
@@ -42,6 +42,7 @@ const DEFAULT_DRAWING_STATE: Readonly<DrawingState> = Object.freeze({
   vipProcessedWinners: false,
   vipControlActive: false
 });
+
 
 // FIXED: Unified timestamp conversion function
 const convertTimestamp = (value: any): Date => {

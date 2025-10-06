@@ -274,7 +274,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onLogout }) => {
       shouldStartSlowdown: false,
       shouldStartSpinning: false,
       vipProcessedWinners: false,
-      vipControlActive: false
+      vipControlActive: false,
+      selectedPrizeName: null,
+      selectedPrizeImage: null,
+      isDrawing: false
     });
   }, [updateDrawingState]);
 
