@@ -294,13 +294,16 @@ const DisplayPage: React.FC = () => {
             </div>
           )}
 
-          {/* Header with Logo */}
+             {/* Header with Logo */}
           <div className="absolute top-0 left-0 right-0 flex justify-between items-start p-12 z-20">
             {settings.eventLogo && (
               <img
                 src={settings.eventLogo}
                 alt="Event Logo"
                 className="h-32 w-auto"
+                style={{
+                  filter: 'drop-shadow(0 0 10px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 20px rgba(255, 255, 255, 0.7)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.5))'
+                }}
               />
             )}
           </div>
