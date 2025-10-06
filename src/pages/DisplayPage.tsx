@@ -18,22 +18,22 @@ interface DrawingState {
   shouldStartSlowdown?: boolean;
 }
 
-// Function untuk menentukan layout berdasarkan jumlah slot
+// Function untuk menentukan layout berdasarkan jumlah slot - Updated with larger text sizes
 const getLayoutConfig = (drawCount: number) => {
   if (drawCount <= 5) {
     return { rows: 1, cols: drawCount, height: 'min-h-[450px]', textSize: 'text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl', readyTextSize: 'text-2xl md:text-3xl lg:text-4xl', winnerTextSize: 'text-lg sm:text-xl' };
   } else if (drawCount <= 10) {
-    return { rows: 2, cols: 5, height: 'min-h-[300px]', textSize: 'text-lg sm:text-lg md:text-xl lg:text-2xl xl:text-3xl', readyTextSize: 'text-lg md:text-xl lg:text-2xl', winnerTextSize: 'text-base sm:text-2xl' };
+    return { rows: 2, cols: 5, height: 'min-h-[300px]', textSize: 'text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl', readyTextSize: 'text-2xl md:text-3xl lg:text-4xl', winnerTextSize: 'text-lg sm:text-2xl' };
   } else if (drawCount <= 15) {
-    return { rows: 3, cols: 5, height: 'min-h-[250px]', textSize: 'text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl', readyTextSize: 'text-xl md:text-2xl lg:text-3xl', winnerTextSize: 'text-base sm:text-lg' };
+    return { rows: 3, cols: 5, height: 'min-h-[250px]', textSize: 'text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl', readyTextSize: 'text-2xl md:text-3xl lg:text-4xl', winnerTextSize: 'text-lg sm:text-xl' };
   } else if (drawCount <= 20) {
-    return { rows: 4, cols: 5, height: 'min-h-[200px]', textSize: 'text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl', readyTextSize: 'text-lg md:text-xl lg:text-2xl', winnerTextSize: 'text-base sm:text-lg' };
+    return { rows: 4, cols: 5, height: 'min-h-[200px]', textSize: 'text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl', readyTextSize: 'text-xl md:text-2xl lg:text-3xl', winnerTextSize: 'text-lg sm:text-xl' };
   } else if (drawCount <= 25) {
-    return { rows: 5, cols: 5, height: 'min-h-[180px]', textSize: 'text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl', readyTextSize: 'text-lg md:text-xl lg:text-2xl', winnerTextSize: 'text-sm sm:text-base' };
+    return { rows: 5, cols: 5, height: 'min-h-[180px]', textSize: 'text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl', readyTextSize: 'text-xl md:text-2xl lg:text-3xl', winnerTextSize: 'text-base sm:text-lg' };
   } else if (drawCount <= 30) {
-    return { rows: 6, cols: 5, height: 'min-h-[160px]', textSize: 'text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl', readyTextSize: 'text-base md:text-lg lg:text-xl', winnerTextSize: 'text-sm sm:text-base' };
+    return { rows: 6, cols: 5, height: 'min-h-[160px]', textSize: 'text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl', readyTextSize: 'text-lg md:text-xl lg:text-2xl', winnerTextSize: 'text-base sm:text-lg' };
   } else {
-    return { rows: Math.ceil(drawCount / 6), cols: 6, height: 'min-h-[140px]', textSize: 'text-sm sm:text-base md:text-lg lg:text-xl', readyTextSize: 'text-base md:text-lg', winnerTextSize: 'text-xs sm:text-sm' };
+    return { rows: Math.ceil(drawCount / 6), cols: 6, height: 'min-h-[140px]', textSize: 'text-base sm:text-lg md:text-xl lg:text-2xl', readyTextSize: 'text-lg md:text-xl', winnerTextSize: 'text-sm sm:text-base' };
   }
 };
 const useOptimizedSpinning = (participants: Participant[], drawCount: number) => {
@@ -274,10 +274,9 @@ const DisplayPage: React.FC = () => {
         }}
       >
         <div className="fixed inset-0 bg-gradient-to-b from-blue-400 to-blue-950 flex flex-col text-slate-800 overflow-hidden">
-          
           {/* Prize Image - Positioned at bottom right corner */}
           {localState.selectedPrizeImage && (
-            <div className="absolute bottom-0 right-0 z-0">
+            <div className="absolute bottom-0 right-0 z-0 overflow-hidden">
               <img
                 src={localState.selectedPrizeImage}
                 alt="Prize"
@@ -344,6 +343,7 @@ const DisplayPage: React.FC = () => {
                               {/* Name */}
                               <span className={`font-bold whitespace-nowrap overflow-visible max-w-full text-4xl md:text-8xl ${
                                 showFinalResults ? 'text-8xl md:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white mb-4' : 'text-6xl md:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white mb-4'
+
                               }`}>
                                 {currentSingleName || (showFinalResults ? localState.finalWinners?.[0]?.name : '') || '...'}
                               </span>
