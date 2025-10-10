@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Winner, AppSettings, Participant } from '../types';
 import { useFirestore } from '../hooks/useFirestore';
 import { useFirebaseDrawingState } from '../hooks/useFirebaseDrawingState';
@@ -21,57 +21,24 @@ interface DrawingState {
 // Function untuk menentukan layout berdasarkan jumlah slot - Updated with larger text sizes
 const getLayoutConfig = (drawCount: number) => {
   if (drawCount <= 5) {
-    return { rows: 1, cols: drawCount, height: 'min-h-[450px]', textSize: 'text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl', readyTextSize: 'text-2xl md:text-3xl lg:text-4xl', winnerTextSize: 'text-lg sm:text-xl' };
+    return { rows: 1, cols: drawCount, height: 'min-h-[450px]', textSize: 'text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl', bibSize: 'text-lg sm:text-xl md:text-2xl', readyTextSize: 'text-2xl md:text-3xl lg:text-4xl', winnerTextSize: 'text-lg sm:text-xl' };
   } else if (drawCount <= 10) {
-    return { rows: 2, cols: 5, height: 'min-h-[300px]', textSize: 'text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl', readyTextSize: 'text-2xl md:text-3xl lg:text-4xl', winnerTextSize: 'text-lg sm:text-2xl' };
+    return { rows: 2, cols: 5, height: 'min-h-[300px]', textSize: 'text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl', bibSize: 'text-base sm:text-lg md:text-xl', readyTextSize: 'text-2xl md:text-3xl lg:text-4xl', winnerTextSize: 'text-lg sm:text-2xl' };
   } else if (drawCount <= 15) {
-    return { rows: 3, cols: 5, height: 'min-h-[250px]', textSize: 'text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl', readyTextSize: 'text-2xl md:text-3xl lg:text-4xl', winnerTextSize: 'text-lg sm:text-xl' };
+    return { rows: 3, cols: 5, height: 'min-h-[250px]', textSize: 'text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl', bibSize: 'text-base sm:text-lg md:text-xl', readyTextSize: 'text-2xl md:text-3xl lg:text-4xl', winnerTextSize: 'text-lg sm:text-xl' };
   } else if (drawCount <= 20) {
-    return { rows: 4, cols: 5, height: 'min-h-[200px]', textSize: 'text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl', readyTextSize: 'text-xl md:text-2xl lg:text-3xl', winnerTextSize: 'text-lg sm:text-xl' };
+    return { rows: 4, cols: 5, height: 'min-h-[200px]', textSize: 'text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl', bibSize: 'text-sm sm:text-base md:text-lg', readyTextSize: 'text-xl md:text-2xl lg:text-3xl', winnerTextSize: 'text-lg sm:text-xl' };
   } else if (drawCount <= 25) {
-    return { rows: 5, cols: 5, height: 'min-h-[180px]', textSize: 'text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl', readyTextSize: 'text-xl md:text-2xl lg:text-3xl', winnerTextSize: 'text-base sm:text-lg' };
+    return { rows: 5, cols: 5, height: 'min-h-[180px]', textSize: 'text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl', bibSize: 'text-sm sm:text-base md:text-lg', readyTextSize: 'text-xl md:text-2xl lg:text-3xl', winnerTextSize: 'text-base sm:text-lg' };
   } else if (drawCount <= 30) {
-    return { rows: 6, cols: 5, height: 'min-h-[160px]', textSize: 'text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl', readyTextSize: 'text-lg md:text-xl lg:text-2xl', winnerTextSize: 'text-base sm:text-lg' };
+    return { rows: 6, cols: 5, height: 'min-h-[160px]', textSize: 'text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl', bibSize: 'text-xs sm:text-sm md:text-base', readyTextSize: 'text-lg md:text-xl lg:text-2xl', winnerTextSize: 'text-base sm:text-lg' };
   } else {
-    return { rows: Math.ceil(drawCount / 6), cols: 6, height: 'min-h-[140px]', textSize: 'text-base sm:text-lg md:text-xl lg:text-2xl', readyTextSize: 'text-lg md:text-xl', winnerTextSize: 'text-sm sm:text-base' };
+    return { rows: Math.ceil(drawCount / 6), cols: 6, height: 'min-h-[140px]', textSize: 'text-base sm:text-lg md:text-xl lg:text-2xl', bibSize: 'text-xs sm:text-sm', readyTextSize: 'text-lg md:text-xl', winnerTextSize: 'text-sm sm:text-base' };
   }
-};
-const useOptimizedSpinning = (participants: Participant[], drawCount: number) => {
-  const [rollingNames, setRollingNames] = useState<string[]>([]);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const participantsRef = useRef(participants);
-  
-  // Pre-calculate random indices untuk performa lebih baik
-  const getRandomIndices = useCallback((count: number, maxLength: number) => {
-    const indices = new Set<number>();
-    while (indices.size < count) {
-      indices.add(Math.floor(Math.random() * maxLength));
-    }
-    return Array.from(indices);
-  }, []);
-
-  useEffect(() => {
-    if (isSpinning && participantsRef.current.length > 0) {
-      // Gunakan requestAnimationFrame untuk animasi yang smooth
-      const animate = () => {
-        const randomIndices = getRandomIndices(drawCount, participantsRef.current.length);
-        const newNames = randomIndices.map(i => participantsRef.current[i]?.name || '');
-        setRollingNames(newNames);
-        
-        if (isSpinning) {
-          requestAnimationFrame(animate);
-        }
-      };
-      
-      requestAnimationFrame(animate);
-    }
-  }, [isSpinning, drawCount, getRandomIndices]);
-
-  return rollingNames;
 };
 
 // Function untuk membuat grid baris
-const createGridRows = (drawCount: number, layoutConfig: { rows: any; cols: any; height?: string; textSize?: string; readyTextSize?: string; winnerTextSize?: string; }) => {
+const createGridRows = (drawCount: number, layoutConfig: any) => {
   const { rows, cols } = layoutConfig;
   const gridRows = [];
   
@@ -128,6 +95,17 @@ const DisplayPage: React.FC = () => {
   
   // Instant animation speed - no delays
   const ANIMATION_SPEED = 50; // Very fast update
+  
+  // Helper function untuk memisahkan nama dan BIB
+  const parseNameAndBib = (fullName: string): { name: string; bib: string } => {
+    const bibMatch = fullName.match(/\(([^)]+)\)$/);
+    if (bibMatch) {
+      const name = fullName.replace(/\s*\([^)]+\)$/, '').trim();
+      const bib = bibMatch[1];
+      return { name, bib };
+    }
+    return { name: fullName, bib: '' };
+  };
   
   // State synchronization
   useEffect(() => {
@@ -293,7 +271,7 @@ const DisplayPage: React.FC = () => {
             </div>
           )}
 
-             {/* Header with Logo */}
+          {/* Header with Logo */}
           <div className="absolute top-0 left-0 right-0 flex justify-between items-start p-12 z-20">
             {settings.eventLogo && (
               <img
@@ -311,7 +289,7 @@ const DisplayPage: React.FC = () => {
           {localState.selectedPrizeName && (localState.isDrawing || showFinalResults) && (
             <div className="absolute top-24 left-0 right-0 z-20">
               <div className="text-center">
-                 <div className="bg-transparent">
+                <div className="bg-transparent">
                   <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white mb-4 uppercase">
                     {localState.selectedPrizeName}
                   </h1>
@@ -338,24 +316,36 @@ const DisplayPage: React.FC = () => {
                           </div>
                         ) : (
                           <div className="text-center px-8">
-                            <div className={`px-26 py-24 ${
-                              showFinalResults
-                                ? 'border-transparent bg-transparent shadow-transparent' 
-                                : 'bg-transparent shadow-transparent'
-                            }`}>
-                              {/* Name */}
-                              <span className={`font-bold whitespace-nowrap overflow-visible max-w-full text-4xl md:text-8xl ${
-                                showFinalResults ? 'text-8xl md:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white mb-4' : 'text-6xl md:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white mb-4'
-
-                              }`}>
-                                {currentSingleName || (showFinalResults ? localState.finalWinners?.[0]?.name : '') || '...'}
-                              </span>
-                              
-                              {showFinalResults && (
-                                <div className="text-6xl mt-4 text-white/80 font-bold">
-                                  PEMENANG!
-                                </div>
-                              )}
+                            <div className="px-26 py-24 bg-transparent shadow-transparent">
+                              {(() => {
+                                const displayName = currentSingleName || (showFinalResults ? localState.finalWinners?.[0]?.name : '') || '...';
+                                const parsed = parseNameAndBib(displayName);
+                                return (
+                                  <div>
+                                    {/* Name */}
+                                    <div className={`font-bold whitespace-nowrap overflow-visible max-w-full ${
+                                      showFinalResults ? 'text-5xl md:text-7xl text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white' : 'text-3xl md:text-5xl text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white'
+                                    }`}>
+                                      {parsed.name}
+                                    </div>
+                                    
+                                    {/* BIB Number */}
+                                    {parsed.bib && (
+                                      <div className={`mt-4 font-bold ${
+                                        showFinalResults ? 'text-6xl md:text-8xl text-white/90' : 'text-5xl md:text-7xl text-white/80'
+                                      }`}>
+                                         {parsed.bib}
+                                      </div>
+                                    )}
+                                    
+                                    {showFinalResults && (
+                                      <div className="text-5xl mt-6 text-white/80 font-bold">
+                                        PEMENANG!
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </div>
                         )}
@@ -398,8 +388,8 @@ const DisplayPage: React.FC = () => {
                                             {!isSpinning && !showFinalResults ? (
                                               <div className="absolute inset-0 flex items-center justify-center">
                                                 <div className="text-center">
-                                                  <div className="bg-transparent ">
-                                                    <span className={`${layoutConfig.readyTextSize}  font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white mb-4' : 'text-6xl md:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white mb-4`}>
+                                                  <div className="bg-transparent">
+                                                    <span className={`${layoutConfig.readyTextSize} font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white`}>
                                                       Ready
                                                     </span>
                                                   </div>
@@ -409,23 +399,34 @@ const DisplayPage: React.FC = () => {
                                               /* Rolling Name or Final Result */
                                               <div className="absolute inset-0 flex items-center justify-center p-2">
                                                 <div className="text-center w-full">
-                                                  <div className={`rounded-lg px-3 py-2 shadow-lg ${
-                                                    showFinalResults
-                                                      ? 'bg-transparent border-transparent shadow-transparent' 
-                                                      : 'bg-transparent border-transparent shadow-transparent'
-                                                  }`}>
-                                                    {/* Name */}
-                                                    <span className={`${layoutConfig.textSize} font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white mb-4' : 'text-6xl md:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white mb-4 ${
-                                                      showFinalResults ? 'text-black' : 'text-black'
-                                                    }`}>
-                                                      {rollingNames[actualIndex] || (showFinalResults ? localState.finalWinners?.[actualIndex]?.name : '') || '...'}
-                                                    </span>
-                                                    
-                                                    {showFinalResults && (
-                                                      <div className={`${layoutConfig.winnerTextSize} mt-1 text-green-500 font-bold`}>
-                                                        WINNER!
-                                                      </div>
-                                                    )}
+                                                  <div className="rounded-lg px-3 py-2 bg-transparent border-transparent shadow-transparent">
+                                                    {(() => {
+                                                      const displayName = rollingNames[actualIndex] || (showFinalResults ? localState.finalWinners?.[actualIndex]?.name : '') || '...';
+                                                      const parsed = parseNameAndBib(displayName);
+                                                      return (
+                                                        <div>
+                                                          {/* Name */}
+                                                          <div className={`${layoutConfig.textSize} font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-200 to-white`}>
+                                                            {parsed.name}
+                                                          </div>
+                                                          
+                                                          {/* BIB Number */}
+                                                          {parsed.bib && (
+                                                            <div className={`${layoutConfig.bibSize} mt-2 font-semibold ${
+                                                              showFinalResults ? 'text-white/90' : 'text-white/80'
+                                                            }`}>
+                                                             {parsed.bib}
+                                                            </div>
+                                                          )}
+                                                          
+                                                          {showFinalResults && (
+                                                            <div className={`${layoutConfig.winnerTextSize} mt-1 text-green-400 font-bold`}>
+                                                              WINNER!
+                                                            </div>
+                                                          )}
+                                                        </div>
+                                                      );
+                                                    })()}
                                                   </div>
                                                 </div>
                                               </div>
