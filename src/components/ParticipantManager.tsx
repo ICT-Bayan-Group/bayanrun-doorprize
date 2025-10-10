@@ -97,7 +97,7 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
       const lines = parseCSV(text);
       
       // Process and validate
-      const validData: Array<{ name: string }> = [];
+      const validData: Array<{ name: string; phone?: string; email?: string }> = [];
       const invalidNames: string[] = [];
       
       lines.forEach(line => {
@@ -105,6 +105,7 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
         const validation = validateName(name);
         
         if (validation.isValid) {
+          // Only include name, no phone/email for simple text import
           validData.push({ name });
         } else {
           invalidNames.push(name);
@@ -120,7 +121,14 @@ const ParticipantManager: React.FC<ParticipantManagerProps> = ({
       setImportResult(result);
       
       if (validData.length > 0) {
-        onImportParticipants(validData);
+        // Clean data - remove undefined values before passing to parent
+        const cleanedData = validData.map(item => {
+          const cleaned: any = { name: item.name };
+          if (item.phone) cleaned.phone = item.phone;
+          if (item.email) cleaned.email = item.email;
+          return cleaned;
+        });
+        onImportParticipants(cleanedData);
       }
       
     } catch (error) {
