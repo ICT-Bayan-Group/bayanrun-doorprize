@@ -65,8 +65,8 @@ export const importFromFile = (file: File): Promise<ImportedParticipantData[]> =
                   data.forEach(row => {
                     let participantName = '';
                     let bibNumber = '';
-                    let phone = '';
-                    let email = '';
+                    let phone: string | undefined = undefined;
+                    let email: string | undefined = undefined;
                     
                     // Get name
                     if (nameColumn) {
@@ -89,18 +89,18 @@ export const importFromFile = (file: File): Promise<ImportedParticipantData[]> =
                       }
                     }
                     
-                    // Get phone
-                    if (phoneColumn) {
-                      const phoneValue = String(row[phoneColumn] || '').trim();
-                      if (phoneValue.length > 0) {
+                    // Get phone (only if column exists and has value)
+                    if (phoneColumn && row[phoneColumn]) {
+                      const phoneValue = String(row[phoneColumn]).trim();
+                      if (phoneValue.length > 0 && phoneValue !== '-' && phoneValue !== 'undefined') {
                         phone = phoneValue;
                       }
                     }
                     
-                    // Get email
-                    if (emailColumn) {
-                      const emailValue = String(row[emailColumn] || '').trim();
-                      if (emailValue.length > 0) {
+                    // Get email (only if column exists and has value)
+                    if (emailColumn && row[emailColumn]) {
+                      const emailValue = String(row[emailColumn]).trim();
+                      if (emailValue.length > 0 && emailValue !== '-' && emailValue !== 'undefined') {
                         email = emailValue;
                       }
                     }
@@ -111,11 +111,21 @@ export const importFromFile = (file: File): Promise<ImportedParticipantData[]> =
                         ? `${participantName} (${bibNumber})`
                         : participantName || bibNumber;
                       
-                      participants.push({
-                        name: displayName,
-                        phone: phone || undefined,
-                        email: email || undefined
-                      });
+                      const participantData: ImportedParticipantData = {
+                        name: displayName
+                      };
+                      
+                      // Only add phone if it exists
+                      if (phone) {
+                        participantData.phone = phone;
+                      }
+                      
+                      // Only add email if it exists
+                      if (email) {
+                        participantData.email = email;
+                      }
+                      
+                      participants.push(participantData);
                     }
                   });
                   
@@ -143,17 +153,7 @@ export const importFromFile = (file: File): Promise<ImportedParticipantData[]> =
                 if (participants.length === 0) {
                   reject(new Error('Tidak ditemukan data yang valid dalam file CSV. Pastikan file memiliki kolom "nama"/"name" atau "bib"/"nomor".'));
                 } else {
-                  // Remove duplicates based on name
-                  const seen = new Set<string>();
-                  const uniqueParticipants = participants.filter(p => {
-                    const key = p.name.toLowerCase();
-                    if (seen.has(key)) {
-                      return false;
-                    }
-                    seen.add(key);
-                    return true;
-                  });
-                  resolve(uniqueParticipants);
+                  resolve(participants);
                 }
               } catch (error) {
                 reject(new Error('Error parsing CSV data: ' + (error as Error).message));
@@ -188,17 +188,7 @@ export const importFromFile = (file: File): Promise<ImportedParticipantData[]> =
           if (participants.length === 0) {
             reject(new Error('Tidak ditemukan data yang valid dalam file teks.'));
           } else {
-            // Remove duplicates
-            const seen = new Set<string>();
-            const uniqueParticipants = participants.filter(p => {
-              const key = p.name.toLowerCase();
-              if (seen.has(key)) {
-                return false;
-              }
-              seen.add(key);
-              return true;
-            });
-            resolve(uniqueParticipants);
+            resolve(participants);
           }
         }
       } catch (error) {
